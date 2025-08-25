@@ -118,6 +118,11 @@ export default function DashboardBuilderApp() {
   const [shareOpen, setShareOpen] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [canAddWidgets, setCanAddWidgets] = useState(false);
+  
+  // NOVOS ESTADOS PARA DROP ZONE INTELIGENTE
+  const [dropZoneActive, setDropZoneActive] = useState(false);
+  const [dropInsertIndex, setDropInsertIndex] = useState(-1);
+  const containerRef = useRef(null);
 
   const dashboardsEqual = (a, b) => {
     try {
@@ -383,7 +388,103 @@ export default function DashboardBuilderApp() {
     setDashboards((prev) => prev.map((d) => (d.id === activeDash.id ? { ...d, widgets } : d)));
   };
 
-  // Drag & Drop handlers - CORRIGIDOS
+  // FUNÇÃO PARA CALCULAR POSIÇÃO DE INSERÇÃO INTELIGENTE
+  const calculateInsertIndex = (e, widgets) => {
+    if (!containerRef.current || widgets.length === 0) return widgets.length;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Buscar todos os widgets visíveis
+    const widgetElements = containerRef.current.querySelectorAll('[data-widget-id]');
+    let closestIndex = widgets.length;
+    let minDistance = Infinity;
+    
+    // Calcular distância para cada widget
+    for (let i = 0; i < widgetElements.length; i++) {
+      const element = widgetElements[i];
+      const elementRect = element.getBoundingClientRect();
+      
+      // Centro do widget
+      const centerX = elementRect.left + elementRect.width / 2 - rect.left;
+      const centerY = elementRect.top + elementRect.height / 2 - rect.top;
+      
+      // Distância do mouse ao centro do widget
+      const distance = Math.sqrt(Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2));
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        
+        // Determinar se deve inserir antes ou depois baseado na posição
+        if (mouseX < centerX || (mouseX === centerX && mouseY < centerY)) {
+          closestIndex = i;
+        } else {
+          closestIndex = i + 1;
+        }
+      }
+    }
+    
+    return Math.max(0, Math.min(closestIndex, widgets.length));
+  };
+
+  // HANDLERS PARA DROP ZONE INTELIGENTE
+  const handleContainerDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggingId || !editMode) return;
+    
+    e.dataTransfer.dropEffect = 'move';
+    setDropZoneActive(true);
+    
+    // Calcular onde inserir baseado na posição do mouse
+    const widgets = activeDash?.widgets || [];
+    const insertIndex = calculateInsertIndex(e, widgets.filter(w => w.id !== draggingId));
+    setDropInsertIndex(insertIndex);
+  };
+
+  const handleContainerDragLeave = (e) => {
+    // Só remove se realmente saiu do container
+    if (!containerRef.current?.contains(e.relatedTarget)) {
+      setDropZoneActive(false);
+      setDropInsertIndex(-1);
+    }
+  };
+
+  const handleContainerDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setDropZoneActive(false);
+    setDropInsertIndex(-1);
+    
+    if (!draggingId || !editMode) return;
+    
+    const widgets = [...(activeDash.widgets || [])];
+    const fromIndex = widgets.findIndex((x) => x.id === draggingId);
+    
+    if (fromIndex === -1) return;
+    
+    // Calcular posição final de inserção
+    let insertIndex = calculateInsertIndex(e, widgets.filter(w => w.id !== draggingId));
+    
+    // Ajustar índice se o widget arrastado estava antes da posição de inserção
+    if (fromIndex < insertIndex) {
+      insertIndex--;
+    }
+    
+    // Mover widget para nova posição
+    const [movedWidget] = widgets.splice(fromIndex, 1);
+    widgets.splice(insertIndex, 0, movedWidget);
+    
+    setWidgets(widgets);
+    setDraggingId(null);
+    
+    console.log(`🎯 Widget ${draggingId} movido de ${fromIndex} para ${insertIndex}`);
+  };
+
+  // Drag & Drop handlers - MANTIDOS para widget-to-widget
   const handleDragStart = (e, id) => {
     if (!editMode) return false;
     
@@ -396,6 +497,8 @@ export default function DashboardBuilderApp() {
 
   const handleDragEnd = () => {
     setDraggingId(null);
+    setDropZoneActive(false);
+    setDropInsertIndex(-1);
   };
 
   const handleDragOver = (e, overId) => {
@@ -620,40 +723,103 @@ export default function DashboardBuilderApp() {
               </div>
             )}
 
-            {/* CONTAINER LIVRE - Layout flexível com wrap automático */}
+            {/* CONTAINER COM DROP ZONE INTELIGENTE */}
             <div 
-              className="widgets-container pb-12" 
+              ref={containerRef}
+              className={`widgets-container pb-12 relative ${
+                dropZoneActive ? 'drop-zone-active' : ''
+              }`}
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '1.5rem',
                 alignItems: 'flex-start',
                 justifyContent: 'flex-start',
-                // Permitir que os widgets quebrem linha quando necessário
                 width: '100%',
-                overflow: 'visible'
+                overflow: 'visible',
+                minHeight: '200px', // Área mínima para drop
+                padding: '1rem', // Padding para melhor área de drop
+                // Visual feedback do drop zone
+                border: dropZoneActive ? '2px dashed #3b82f6' : '2px dashed transparent',
+                borderRadius: '1rem',
+                backgroundColor: dropZoneActive ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                transition: 'all 0.2s ease'
               }}
+              // Eventos de drop no container
+              onDragOver={handleContainerDragOver}
+              onDragLeave={handleContainerDragLeave}
+              onDrop={handleContainerDrop}
             >
-              {(activeDash?.widgets || []).map((w) => (
-                <WidgetCard
-                  key={w.id}
-                  w={w}
-                  editMode={editMode}
-                  onEdit={() => editWidget(w.id)}
-                  onDup={() => duplicateWidget(w.id)}
-                  onDel={() => deleteWidget(w.id)}
-                  onMoveUp={() => moveWidget(w.id, "up")}
-                  onMoveDown={() => moveWidget(w.id, "down")}
-                  onResize={resizeWidget}
-                  // Drag & Drop - CORRIGIDO
-                  draggable={editMode}
-                  onDragStart={(e) => handleDragStart(e, w.id)}
-                  onDragOver={(e) => handleDragOver(e, w.id)}
-                  onDrop={(e) => handleDrop(e, w.id)}
-                  onDragEnd={handleDragEnd}
-                  isDragging={draggingId === w.id}
-                />
+              {/* Drop zone indicator com posição inteligente */}
+              {dropZoneActive && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                    🎯 Inserir na posição {dropInsertIndex + 1}
+                    <span className="text-xs opacity-75">
+                      (de {(activeDash?.widgets?.length || 0) + 1})
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {(activeDash?.widgets || []).map((w, index) => (
+                <React.Fragment key={w.id}>
+                  {/* Indicador de posição de inserção */}
+                  {dropZoneActive && dropInsertIndex === index && (
+                    <div className="drop-indicator" style={{
+                      width: '4px',
+                      minHeight: '100px',
+                      backgroundColor: '#3b82f6',
+                      borderRadius: '2px',
+                      boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)',
+                      animation: 'pulse 1s infinite',
+                      zIndex: 20,
+                      flexShrink: 0
+                    }} />
+                  )}
+                  
+                  <WidgetCard
+                    w={w}
+                    editMode={editMode}
+                    onEdit={() => editWidget(w.id)}
+                    onDup={() => duplicateWidget(w.id)}
+                    onDel={() => deleteWidget(w.id)}
+                    onMoveUp={() => moveWidget(w.id, "up")}
+                    onMoveDown={() => moveWidget(w.id, "down")}
+                    onResize={resizeWidget}
+                    draggable={editMode}
+                    onDragStart={(e) => handleDragStart(e, w.id)}
+                    onDragOver={(e) => handleDragOver(e, w.id)}
+                    onDrop={(e) => handleDrop(e, w.id)}
+                    onDragEnd={handleDragEnd}
+                    isDragging={draggingId === w.id}
+                    draggingId={draggingId}
+                  />
+                </React.Fragment>
               ))}
+              
+              {/* Indicador final de inserção */}
+              {dropZoneActive && dropInsertIndex === (activeDash?.widgets?.length || 0) && (
+                <div className="drop-indicator" style={{
+                  width: '4px',
+                  minHeight: '100px',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: '2px',
+                  boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)',
+                  animation: 'pulse 1s infinite',
+                  zIndex: 20,
+                  flexShrink: 0
+                }} />
+              )}
+              
+              {/* Mensagem quando não há widgets */}
+              {(activeDash?.widgets || []).length === 0 && !draggingId && (
+                <div className="w-full text-center py-12 opacity-50">
+                  <div className="text-2xl mb-2">📊</div>
+                  <div className="text-sm">Nenhum widget ainda</div>
+                  {editMode && <div className="text-xs mt-1">Use "Adicionar widget" para começar</div>}
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -709,6 +875,25 @@ export default function DashboardBuilderApp() {
           }}
         />
       )}
+      
+      {/* Estilos CSS para animações */}
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        
+        .drop-zone-active {
+          background-image: 
+            repeating-linear-gradient(
+              45deg,
+              transparent,
+              transparent 10px,
+              rgba(59, 130, 246, 0.1) 10px,
+              rgba(59, 130, 246, 0.1) 20px
+            );
+        }
+      `}</style>
     </div>
   );
 }
