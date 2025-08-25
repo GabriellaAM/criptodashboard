@@ -73,10 +73,10 @@ function createPresetDashboards() {
     id: uid(),
     name: "Cripto",
     widgets: [
-      { id: uid(), type: "iframe", title: "BTC/USDT — TradingView", span: 8, height: 420, config: { url: tvBTC, allowFull: true, border: true } },
-      { id: uid(), type: "iframe", title: "DXY — TradingView", span: 4, height: 420, config: { url: tvDXY, allowFull: true, border: true } },
-      { id: uid(), type: "chart", title: "BTC x ETH (amostra)", span: 12, height: 320, config: chartConfigFromCSV(cryptoCSV) },
-      { id: uid(), type: "table", title: "Top moedas (amostra)", span: 12, height: 280, config: tableConfigFromCSV(tableCSV) },
+      { id: uid(), type: "iframe", title: "BTC/USDT — TradingView", width: 600, height: 420, config: { url: tvBTC, allowFull: true, border: true } },
+      { id: uid(), type: "iframe", title: "DXY — TradingView", width: 400, height: 420, config: { url: tvDXY, allowFull: true, border: true } },
+      { id: uid(), type: "chart", title: "BTC x ETH (amostra)", width: 800, height: 320, config: chartConfigFromCSV(cryptoCSV) },
+      { id: uid(), type: "table", title: "Top moedas (amostra)", width: 600, height: 280, config: tableConfigFromCSV(tableCSV) },
     ],
   };
 
@@ -84,7 +84,7 @@ function createPresetDashboards() {
     id: uid(),
     name: "Macro",
     widgets: [
-      { id: uid(), type: "chart", title: "Inflação (YoY) x Desemprego (amostra)", span: 12, height: 360, config: chartConfigFromCSV(macroCSV) },
+      { id: uid(), type: "chart", title: "Inflação (YoY) x Desemprego (amostra)", width: 700, height: 360, config: chartConfigFromCSV(macroCSV) },
     ],
   };
 
@@ -124,7 +124,6 @@ export default function DashboardBuilderApp() {
       if (a === b) return true;
       if (!Array.isArray(a) || !Array.isArray(b)) return false;
       if (a.length !== b.length) return false;
-      // Comparação superficial por id + JSON dos widgets para evitar trocas desnecessárias
       for (let i = 0; i < a.length; i++) {
         if (a[i]?.id !== b[i]?.id) return false;
         const aw = a[i]?.widgets || [];
@@ -145,7 +144,6 @@ export default function DashboardBuilderApp() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Tentar carregar do Supabase primeiro
     const loadFromSupabase = async () => {
       try {
         const data = await loadDashboards()
@@ -154,12 +152,10 @@ export default function DashboardBuilderApp() {
           setActiveId((prev) => (data.some((d) => d.id === prev) ? prev : (data[0]?.id || null)))
           console.log('Dashboards carregados do Supabase (compartilhado)')
 
-          // Carregar info da última atualização
           const updateInfo = await getLastUpdateInfo()
           setLastUpdateInfo(updateInfo)
           lastUpdateAtRef.current = updateInfo?.updated_at || null
         } else {
-          // Fallback para localStorage
           const fromLS = safeJsonParse(localStorage.getItem(LS_KEY));
           if (Array.isArray(fromLS) && fromLS.length) {
             setDashboards(fromLS);
@@ -173,7 +169,6 @@ export default function DashboardBuilderApp() {
         setIsBooting(false);
       } catch (error) {
         console.error('Erro ao carregar do Supabase:', error)
-        // Fallback para localStorage
         const fromLS = safeJsonParse(localStorage.getItem(LS_KEY));
         if (Array.isArray(fromLS) && fromLS.length) {
           setDashboards(fromLS);
@@ -186,7 +181,6 @@ export default function DashboardBuilderApp() {
       }
     }
 
-    // Se houver ?d=<id> ou ?p=<slug>, carregar esse dashboard específico
     const url = new URL(window.location.href);
     const byId = url.searchParams.get('d');
     const bySlug = url.searchParams.get('p');
@@ -212,18 +206,14 @@ export default function DashboardBuilderApp() {
       loadFromSupabase();
     }
 
-    // Sincronização em tempo real
     const subscription = currentDashMeta?.id ? null : subscribeToChanges((newDashboards) => {
       if (newDashboards && Array.isArray(newDashboards)) {
-        // Evitar sobrescrever estado se não mudou
         setDashboards((prev) => (dashboardsEqual(prev, newDashboards) ? prev : newDashboards));
-        // Preservar dashboard ativo; só alterar se ele não existir mais
         const current = activeIdRef.current;
         if (!newDashboards.some((d) => d.id === (current ?? activeId))) {
           setActiveId(newDashboards[0]?.id || null);
         }
         console.log('Dashboard atualizado via realtime (compartilhado)')
-        // Atualiza horário imediatamente
         const nowIso = new Date().toISOString();
         lastUpdateAtRef.current = nowIso;
         setLastUpdateInfo({ updated_at: nowIso });
@@ -231,8 +221,6 @@ export default function DashboardBuilderApp() {
         setTimeout(() => setSaveStatus(""), 3000)
       }
     })
-
-    // Estado inicial do tema já vem do <html> via layout.js; não forçar aqui para evitar flash
 
     try {
       setShowHelp(localStorage.getItem('dash-show-help') !== '0');
@@ -243,7 +231,7 @@ export default function DashboardBuilderApp() {
     }
   }, []);
 
-  // Polling de atualização (fallback quando Realtime não estiver habilitado) — apenas modo antigo por usuário
+  // Polling de atualização (fallback quando Realtime não estiver habilitado)
   useEffect(() => {
     if (currentDashMeta?.id) return;
     let cancelled = false;
@@ -267,7 +255,7 @@ export default function DashboardBuilderApp() {
           setLastUpdateInfo(info);
         }
       } catch { }
-    }, 10000); // 10s
+    }, 10000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -276,7 +264,6 @@ export default function DashboardBuilderApp() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Salvar no localStorage como fallback
       localStorage.setItem(LS_KEY, JSON.stringify(dashboards));
 
       if (dashboards.length > 0) {
@@ -314,7 +301,6 @@ export default function DashboardBuilderApp() {
     }
   }, [dashboards]);
 
-  // Atualiza flag para mostrar o botão de adicionar widget apenas quando existir ao menos uma página
   useEffect(() => {
     setCanAddWidgets(Array.isArray(dashboards) && dashboards.length > 0);
   }, [dashboards]);
@@ -330,7 +316,6 @@ export default function DashboardBuilderApp() {
     }
   }, [dark]);
 
-  // Lock background scroll when any modal is open
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const anyModalOpen = showAddModal || renameState.open || deleteState.open;
@@ -339,8 +324,6 @@ export default function DashboardBuilderApp() {
     else body.classList.remove('no-scroll');
     return () => body.classList.remove('no-scroll');
   }, [showAddModal, renameState.open, deleteState.open]);
-
-
 
   const activeDash = Array.isArray(dashboards) && dashboards.length
     ? (dashboards.find((d) => d && d.id === activeId) || dashboards[0])
@@ -363,7 +346,6 @@ export default function DashboardBuilderApp() {
     }
     const d = { id: uid(), name, widgets: [] };
     setDashboards((prev) => [...prev, d]);
-    // Volta ao comportamento original: selecionar a nova página imediatamente
     setActiveId(d.id);
     setCanAddWidgets(true);
   };
@@ -401,30 +383,50 @@ export default function DashboardBuilderApp() {
     setDashboards((prev) => prev.map((d) => (d.id === activeDash.id ? { ...d, widgets } : d)));
   };
 
-  // Drag & Drop handlers (reordenar widgets)
+  // Drag & Drop handlers - CORRIGIDOS
   const handleDragStart = (e, id) => {
+    if (!editMode) return false;
+    
     try {
       e.dataTransfer.effectAllowed = 'move';
-      // Alguns navegadores exigem setData para habilitar DnD
       e.dataTransfer.setData('text/plain', String(id));
     } catch { }
     setDraggingId(id);
   };
-  const handleDragEnd = () => setDraggingId(null);
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
+  };
+
   const handleDragOver = (e, overId) => {
     e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    if (!draggingId || draggingId === overId) return;
-    const arr = [...(activeDash.widgets || [])];
-    const from = arr.findIndex((x) => x.id === draggingId);
-    const to = arr.findIndex((x) => x.id === overId);
-    if (from === -1 || to === -1 || from === to) return;
-    const [moved] = arr.splice(from, 1);
-    arr.splice(to, 0, moved);
-    setWidgets(arr);
   };
-  const handleDrop = (e) => {
+
+  const handleDrop = (e, overId) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggingId || draggingId === overId) {
+      setDraggingId(null);
+      return;
+    }
+
+    const arr = [...(activeDash.widgets || [])];
+    const fromIndex = arr.findIndex((x) => x.id === draggingId);
+    const toIndex = arr.findIndex((x) => x.id === overId);
+    
+    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+      setDraggingId(null);
+      return;
+    }
+
+    // Reordenar array
+    const [movedWidget] = arr.splice(fromIndex, 1);
+    arr.splice(toIndex, 0, movedWidget);
+    
+    setWidgets(arr);
     setDraggingId(null);
   };
 
@@ -433,8 +435,8 @@ export default function DashboardBuilderApp() {
       id: uid(),
       type: "iframe",
       title: "Novo widget",
-      span: 6,
-      height: 360,
+      width: 400,   // Largura padrão em pixels
+      height: 360,  // Altura padrão em pixels
       config: { url: "", html: "", allowFull: true, border: true },
       _isNew: true,
     });
@@ -470,7 +472,6 @@ export default function DashboardBuilderApp() {
 
   const deleteWidget = (id) => {
     setWidgets((activeDash.widgets || []).filter((x) => x.id !== id));
-    // Se o widget sendo editado foi excluído, fechar a modal
     if (editingWidget && editingWidget.id === id) {
       setShowAddModal(false);
       setEditingWidget(null);
@@ -487,20 +488,28 @@ export default function DashboardBuilderApp() {
     setWidgets(arr);
   };
 
+  // Função de resize MELHORADA - aplicar mudanças imediatamente
   const resizeWidget = (id, updates) => {
-
-    console.log('📏 Pai recebeu resize:', id, updates);
-    console.log('📋 Widgets antes:', activeDash.widgets?.find(w => w.id === id));
-
-    setWidgets((activeDash.widgets || []).map((w) =>
-      w.id === id ? { ...w, ...updates } : w
-    ));
-
-    // Log após atualização (próximo render)
-    setTimeout(() => {
-      console.log('✅ Widget depois:', activeDash.widgets?.find(w => w.id === id));
-    }, 0);
-
+    console.log('🎯 DashboardApp recebeu resize:', id, updates);
+    
+    setDashboards((prevDashboards) => {
+      return prevDashboards.map((dashboard) => {
+        if (dashboard.id === activeDash?.id) {
+          return {
+            ...dashboard,
+            widgets: dashboard.widgets.map((widget) => {
+              if (widget.id === id) {
+                const updatedWidget = { ...widget, ...updates };
+                console.log('✅ Widget atualizado:', updatedWidget);
+                return updatedWidget;
+              }
+              return widget;
+            })
+          };
+        }
+        return dashboard;
+      });
+    });
   };
 
   const exportJSON = () => {
@@ -528,58 +537,6 @@ export default function DashboardBuilderApp() {
     }
     setDashboards(data);
     setActiveId(data[0]?.id || null);
-  };
-
-  // Função para salvar backup automático
-  const saveBackup = () => {
-    const backup = {
-      dashboards,
-      timestamp: new Date().toISOString(),
-      version: "1.0"
-    };
-    localStorage.setItem("dashboard-backup", JSON.stringify(backup));
-    setSaveStatus("Backup salvo!");
-    setTimeout(() => setSaveStatus(""), 2000);
-  };
-
-  // Função para restaurar backup
-  const restoreBackup = () => {
-    const backup = localStorage.getItem("dashboard-backup");
-    if (backup) {
-      try {
-        const data = JSON.parse(backup);
-        if (data.dashboards && Array.isArray(data.dashboards)) {
-          setDashboards(data.dashboards);
-          setActiveId(data.dashboards[0]?.id || null);
-          alert("Backup restaurado com sucesso!");
-        }
-      } catch (err) {
-        alert("Erro ao restaurar backup");
-      }
-    } else {
-      alert("Nenhum backup encontrado");
-    }
-  };
-
-  // Função para sincronizar com múltiplos dispositivos (usando localStorage + timestamp)
-  const syncData = () => {
-    const syncKey = "dashboard-sync";
-    const currentData = {
-      dashboards,
-      timestamp: Date.now(),
-      deviceId: localStorage.getItem("device-id") || Math.random().toString(36).slice(2)
-    };
-
-    // Salvar dados locais
-    localStorage.setItem(syncKey, JSON.stringify(currentData));
-
-    // Verificar se há dados mais recentes de outros dispositivos
-    const lastSync = localStorage.getItem("last-sync-check");
-    if (lastSync && Date.now() - parseInt(lastSync) < 30000) {
-      return; // Verificar no máximo a cada 30 segundos
-    }
-
-    localStorage.setItem("last-sync-check", Date.now().toString());
   };
 
   return (
@@ -648,7 +605,6 @@ export default function DashboardBuilderApp() {
                     if (file) importJSON(file);
                   }} />
                 </label>
-
               </div>
             </div>
 
@@ -658,14 +614,26 @@ export default function DashboardBuilderApp() {
               </div>
             )}
 
-            {/* Empty state now simplified: no central button, rely on toolbar "Nova página" */}
             {Array.isArray(dashboards) && dashboards.length === 0 && (
               <div className="my-10 text-center opacity-70 text-sm">
                 Nenhuma página ainda — use "Nova página" acima para começar.
               </div>
             )}
 
-            <div className="grid-12 pb-12">
+            {/* CONTAINER LIVRE - Layout flexível com wrap automático */}
+            <div 
+              className="widgets-container pb-12" 
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1.5rem',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
+                // Permitir que os widgets quebrem linha quando necessário
+                width: '100%',
+                overflow: 'visible'
+              }}
+            >
               {(activeDash?.widgets || []).map((w) => (
                 <WidgetCard
                   key={w.id}
@@ -677,11 +645,11 @@ export default function DashboardBuilderApp() {
                   onMoveUp={() => moveWidget(w.id, "up")}
                   onMoveDown={() => moveWidget(w.id, "down")}
                   onResize={resizeWidget}
-                  // Drag & Drop
+                  // Drag & Drop - CORRIGIDO
                   draggable={editMode}
                   onDragStart={(e) => handleDragStart(e, w.id)}
                   onDragOver={(e) => handleDragOver(e, w.id)}
-                  onDrop={(e) => handleDrop(e)}
+                  onDrop={(e) => handleDrop(e, w.id)}
                   onDragEnd={handleDragEnd}
                   isDragging={draggingId === w.id}
                 />
@@ -690,6 +658,7 @@ export default function DashboardBuilderApp() {
           </div>
         </>
       )}
+      
       {showAddModal && (
         <WidgetEditorModal
           initial={editingWidget}

@@ -1,272 +1,263 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import WidgetRenderer from "./WidgetRenderer";
 
-function WidgetCard({ w, editMode, onEdit, onDup, onDel, onMoveUp, onMoveDown, draggable, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, onResize }) {
-	const baseSpan = Math.min(Math.max(Number(w.span) || 12, 1), 12);
-	const [isResizing, setIsResizing] = useState(false);
-	const [resizePreview, setResizePreview] = useState(null);
-	const cardRef = useRef(null);
-	const rafRef = useRef(null);
-	const initialSizes = useRef({ width: 0, height: 0, span: 0 });
-	const currentPreview = useRef(null);
+function WidgetCard({ 
+  w, editMode, onEdit, onDup, onDel, onMoveUp, onMoveDown, 
+  draggable, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, onResize 
+}) {
+  // Dimensões em pixels - totalmente livres
+  const currentWidth = Number(w.width) || 400; // Largura padrão 400px
+  const currentHeight = Number(w.height) || 360; // Altura padrão 360px
+  
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState(null);
+  const cardRef = useRef(null);
+  const startDimensionsRef = useRef({ width: currentWidth, height: currentHeight });
 
-	// Usar largura em pixels se disponível, senão usar sistema de colunas
-	const hasCustomWidth = w.width && Number(w.width) > 0;
-	const currentWidth = hasCustomWidth ? Number(w.width) : null;
-	
-	const styles = { 
-		// Se tem largura customizada, usa pixels; senão usa grid
-		...(hasCustomWidth ? 
-			{ width: currentWidth + 'px', minWidth: '200px' } : 
-			{ gridColumn: `span ${baseSpan} / span ${baseSpan}` }
-		),
-		position: 'relative',
-		// Transição suave quando não está redimensionando
-		transition: isResizing ? 'none' : 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-	};
+  // Atualizar dimensões iniciais quando props mudam
+  useEffect(() => {
+    startDimensionsRef.current = { width: currentWidth, height: currentHeight };
+  }, [currentWidth, currentHeight]);
 
-	const updatePreview = useCallback((width, height, span) => {
-		const previewData = { width, height, span };
-		currentPreview.current = previewData;
-		
-		if (rafRef.current) {
-			cancelAnimationFrame(rafRef.current);
-		}
-		
-		rafRef.current = requestAnimationFrame(() => {
-			setResizePreview(previewData);
-		});
-	}, []);
+  // Estilos com dimensões fixas - sem conflitos de estado
+  const styles = { 
+    width: currentWidth + 'px',
+    height: 'auto', // Altura automática baseada no conteúdo + altura do widget
+    minWidth: '200px',
+    minHeight: '200px',
+    maxWidth: 'none', // Sem limitação máxima
+    maxHeight: 'none', // Sem limitação máxima
+    position: 'relative',
+    flexShrink: 0, // Não encolher
+    flexGrow: 0,   // Não crescer automaticamente
+    // Transição suave apenas quando não está arrastando ou redimensionando
+    transition: (isDragging || isResizing) ? 'none' : 'all 0.2s ease',
+    // Garantir que o widget não seja comprimido
+    overflow: 'visible',
+    // Z-index baixo para não sobrepor header
+    zIndex: isResizing ? 5 : (isDragging ? 4 : 1)
+  };
 
-	const handleResize = useCallback((e, direction) => {
-		e.preventDefault();
-		e.stopPropagation();
-		
-		const rect = cardRef.current?.getBoundingClientRect();
-		if (!rect) return;
+  // Resize handler simplificado - aplica mudanças diretamente
+  const handleResize = useCallback((e, direction) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = startDimensionsRef.current.width;
+    const startHeight = startDimensionsRef.current.height;
+    
+    setIsResizing(true);
+    setResizeDirection(direction);
 
-		const startX = e.clientX;
-		const startY = e.clientY;
-		const startWidth = hasCustomWidth ? currentWidth : rect.width;
-		const startHeight = Number(w.height) || 360;
-		const startSpan = baseSpan;
-		
-		// Calcular largura aproximada de uma coluna (para referência do span)
-		const containerWidth = cardRef.current?.parentElement?.getBoundingClientRect()?.width || 1200;
-		const colWidth = containerWidth / 12;
-		
-		initialSizes.current = { width: startWidth, height: startHeight, span: startSpan };
-		
-		setIsResizing(true);
-		setResizePreview({ width: startWidth, height: startHeight, span: startSpan });
+    // Controle do cursor
+    document.body.style.cursor = 
+      direction === 'horizontal' ? 'ew-resize' : 
+      direction === 'vertical' ? 'ns-resize' : 
+      'nwse-resize';
+    document.body.style.userSelect = 'none';
 
-		// Melhor controle do cursor
-		const originalCursor = document.body.style.cursor;
-		const originalUserSelect = document.body.style.userSelect;
-		const originalPointerEvents = document.body.style.pointerEvents;
-		
-		document.body.style.userSelect = 'none';
-		document.body.style.pointerEvents = 'none';
-		document.body.style.cursor = direction === 'vertical' ? 'ns-resize' : 
-									 direction === 'horizontal' ? 'ew-resize' : 'nwse-resize';
+    const handleMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
 
-		const handleMouseMove = (moveEvent) => {
-			const deltaX = moveEvent.clientX - startX;
-			const deltaY = moveEvent.clientY - startY;
-			
-			let newWidth = startWidth;
-			let newHeight = startHeight;
-			let newSpan = startSpan;
+      if (direction === 'horizontal' || direction === 'both') {
+        newWidth = Math.max(startWidth + deltaX, 200); // Mínimo 200px
+      }
 
-			if (direction === 'horizontal' || direction === 'both') {
-				// Redimensionamento horizontal em pixels - muito mais livre
-				newWidth = Math.max(startWidth + deltaX, 100); // Mínimo de 100px
-				// Calcular span baseado na nova largura (apenas para referência)
-				newSpan = Math.max(Math.round(newWidth / colWidth), 1);
-				newSpan = Math.min(newSpan, 12); // Manter dentro do grid
-			}
+      if (direction === 'vertical' || direction === 'both') {
+        newHeight = Math.max(startHeight + deltaY, 150); // Mínimo 150px  
+      }
 
-			if (direction === 'vertical' || direction === 'both') {
-				// Redimensionamento vertical totalmente livre
-				newHeight = Math.max(startHeight + deltaY, 50); // Mínimo de 50px
-			}
+      // Aplicar mudanças imediatamente ao pai
+      const updates = {
+        width: Math.round(newWidth),
+        height: Math.round(newHeight)
+      };
+      
+      onResize?.(w.id, updates);
+    };
 
-			updatePreview(newWidth, newHeight, newSpan);
-		};
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      
+      // Restaurar cursor
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      
+      setIsResizing(false);
+      setResizeDirection(null);
+      
+      console.log('🎯 Resize finalizado para widget:', w.id);
+    };
 
-		const handleMouseUp = () => {
-			document.removeEventListener('mousemove', handleMouseMove);
-			document.removeEventListener('mouseup', handleMouseUp);
-			
-			// Restaurar estilos originais
-			document.body.style.cursor = originalCursor;
-			document.body.style.userSelect = originalUserSelect;
-			document.body.style.pointerEvents = originalPointerEvents;
-			
-			setIsResizing(false);
-			
-			// Usar a ref ao invés do estado, pois o estado pode estar desatualizado por re-renders
-			const finalPreview = currentPreview.current;
-			
-			if (finalPreview && onResize) {
-				const updates = {};
-				
-				// Sempre salvar largura em pixels agora
-				if (Math.abs(finalPreview.width - initialSizes.current.width) >= 5) {
-					updates.width = Math.round(finalPreview.width);
-				}
-				
-				// Manter span para compatibilidade, mas agora baseado na largura em pixels
-				if (Math.abs(finalPreview.span - initialSizes.current.span) >= 1) {
-					updates.span = finalPreview.span;
-				}
-				
-				if (Math.abs(finalPreview.height - initialSizes.current.height) >= 5) {
-					updates.height = Math.round(finalPreview.height);
-				}
-				
-				if (Object.keys(updates).length > 0) {
-					onResize(w.id, updates);
-				}
-			}
-			
-			// Limpar ref e preview
-			currentPreview.current = null;
-			setTimeout(() => {
-				setResizePreview(null);
-			}, 200);
-		};
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [w.id, onResize]);
 
-		document.addEventListener('mousemove', handleMouseMove, { passive: false });
-		document.addEventListener('mouseup', handleMouseUp, { passive: false });
-	}, [w.id, w.height, w.width, hasCustomWidth, currentWidth, baseSpan, onResize, updatePreview]);
+  const handleDragStartWrapper = (e) => {
+    if (isResizing || !editMode) {
+      e.preventDefault();
+      return false;
+    }
+    onDragStart?.(e);
+  };
 
-	// Limpar RAF no unmount
-	React.useEffect(() => {
-		return () => {
-			if (rafRef.current) {
-				cancelAnimationFrame(rafRef.current);
-			}
-		};
-	}, []);
+  return (
+    <div
+      ref={cardRef}
+      style={styles}
+      className={`
+        bg-white dark:bg-neutral-800 
+        border border-neutral-200 dark:border-neutral-700 
+        rounded-xl p-4 shadow-sm
+        ${isDragging ? 'opacity-50 scale-95' : ''}
+        ${isResizing ? 'ring-2 ring-blue-500/50' : ''}
+        relative
+      `}
+      draggable={!isResizing && editMode && !!draggable}
+      onDragStart={handleDragStartWrapper}
+      onDragOver={onDragOver}
+      onDragEnter={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
+      {/* Handles de resize - visíveis no modo edição */}
+      {editMode && !isDragging && (
+        <>
+          {/* Handle horizontal (direita) */}
+          <div 
+            className="absolute -right-1 top-8 bottom-8 w-3 cursor-ew-resize opacity-0 hover:opacity-100 hover:bg-blue-500/20 transition-opacity rounded-r-xl flex items-center justify-center z-10"
+            onMouseDown={(e) => handleResize(e, 'horizontal')}
+            title="Redimensionar largura"
+          >
+            <div className="w-1 h-8 bg-gray-400 dark:bg-gray-600 rounded-full"></div>
+          </div>
+          
+          {/* Handle vertical (baixo) */}
+          <div 
+            className="absolute left-8 right-8 -bottom-1 h-3 cursor-ns-resize opacity-0 hover:opacity-100 hover:bg-blue-500/20 transition-opacity rounded-b-xl flex items-center justify-center z-10"
+            onMouseDown={(e) => handleResize(e, 'vertical')}
+            title="Redimensionar altura"
+          >
+            <div className="w-8 h-1 bg-gray-400 dark:bg-gray-600 rounded-full"></div>
+          </div>
+          
+          {/* Handle diagonal (canto) */}
+          <div 
+            className="absolute -right-1 -bottom-1 w-5 h-5 cursor-nwse-resize opacity-0 hover:opacity-100 hover:bg-blue-500/30 transition-opacity rounded-tl-lg rounded-br-xl flex items-center justify-center z-10"
+            onMouseDown={(e) => handleResize(e, 'both')}
+            title="Redimensionar ambos"
+          >
+            <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full"></div>
+          </div>
+        </>
+      )}
 
-	const currentHeight = resizePreview?.height ?? (Number(w.height) || 360);
-	const displayWidth = resizePreview?.width ?? (hasCustomWidth ? currentWidth : null);
+      {/* Header com título e controles */}
+      <div className="flex items-start gap-2 mb-3">
+        <h3 className="text-base sm:text-lg font-semibold flex-1 truncate">
+          {w.title || "Widget"}
+        </h3>
+        
+        {editMode && !isDragging && (
+          <div className="flex items-center gap-1 text-sm shrink-0">
+            <button 
+              className="btn-sm hover:scale-110 transition-transform" 
+              title="Mover para cima" 
+              onClick={onMoveUp}
+            >
+              ↑
+            </button>
+            <button 
+              className="btn-sm hover:scale-110 transition-transform" 
+              title="Mover para baixo" 
+              onClick={onMoveDown}
+            >
+              ↓
+            </button>
+            <button 
+              className="btn-sm hover:scale-110 transition-transform" 
+              title="Duplicar" 
+              onClick={onDup}
+            >
+              ⎘
+            </button>
+            <button 
+              className="btn-sm hover:scale-110 transition-transform" 
+              title="Editar" 
+              onClick={onEdit}
+            >
+              ✏️
+            </button>
+            <button 
+              className="btn-sm hover:scale-110 transition-transform text-red-600" 
+              title="Excluir" 
+              onClick={onDel}
+            >
+              🗑️
+            </button>
+          </div>
+        )}
+      </div>
 
-	return (
-		<div
-			ref={cardRef}
-			style={{
-				...styles,
-				// Aplicar largura do preview se estiver redimensionando
-				...(isResizing && displayWidth ? { width: displayWidth + 'px' } : {}),
-			}}
-			className={`card ${isDragging ? 'opacity-60' : ''} ${isResizing ? 'relative' : ''}`} // Removido z-50, mantido apenas relative
-			draggable={!!draggable}
-			onDragStart={onDragStart}
-			onDragOver={onDragOver}
-			onDragEnter={onDragOver}
-			onDrop={onDrop}
-			onDragEnd={onDragEnd}
-		>
-			{/* Handles de resize mais responsivos */}
-			{editMode && (
-				<>
-					{/* Handle horizontal - mais largo para melhor UX */}
-					<div 
-						className="absolute -right-1 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 hover:opacity-100 hover:bg-blue-500/20 transition-all duration-200" 
-						onMouseDown={(e) => handleResize(e, 'horizontal')}
-						style={{ zIndex: 10 }}
-					/>
-					
-					{/* Handle vertical - mais alto para melhor UX */}
-					<div 
-						className="absolute left-0 right-0 -bottom-1 h-3 cursor-ns-resize opacity-0 hover:opacity-100 hover:bg-blue-500/20 transition-all duration-200" 
-						onMouseDown={(e) => handleResize(e, 'vertical')}
-						style={{ zIndex: 10 }}
-					/>
-					
-					{/* Handle diagonal - maior e mais visível */}
-					<div 
-						className="absolute -right-1 -bottom-1 w-4 h-4 cursor-nwse-resize opacity-0 hover:opacity-100 hover:bg-blue-500/40 transition-all duration-200 rounded-tl-md" 
-						onMouseDown={(e) => handleResize(e, 'both')}
-						style={{ zIndex: 11 }}
-					/>
-					
-					{/* Indicador visual permanente no canto */}
-					<div className="absolute right-1 bottom-1 w-2 h-2 opacity-30">
-						<div className="w-full h-full bg-gray-400 dark:bg-gray-600 rounded-full"></div>
-					</div>
-				</>
-			)}
+      {/* Conteúdo do widget - com altura fixa */}
+      <div 
+        style={{ 
+          height: currentHeight + "px",
+          width: '100%',
+          transition: isResizing ? 'none' : 'height 0.2s ease'
+        }} 
+        className="rounded-lg overflow-hidden bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-700 relative"
+      >
+        <WidgetRenderer w={w} />
+        
+        {/* Overlay durante resize */}
+        {isResizing && (
+          <div className="absolute inset-0 bg-blue-500/5 border-2 border-blue-500/60 rounded-lg flex items-center justify-center" style={{ zIndex: 10 }}>
+            <div className="bg-blue-600 text-white text-xs px-3 py-2 rounded shadow-lg font-medium">
+              {currentWidth}×{currentHeight}px
+              {resizeDirection && (
+                <span className="ml-1 opacity-75">
+                  ({resizeDirection === 'horizontal' ? '↔️' : resizeDirection === 'vertical' ? '↕️' : '↗️'})
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
-			<div className="flex items-start gap-2 mb-3">
-				<h3 className="text-base sm:text-lg font-semibold flex-1">{w.title || "Widget"}</h3>
-				{editMode && (
-					<div className="flex items-center gap-1 text-sm">
-						<button className="btn hover:scale-110 transition-transform" title="Mover para cima" onClick={onMoveUp}>↑</button>
-						<button className="btn hover:scale-110 transition-transform" title="Mover para baixo" onClick={onMoveDown}>↓</button>
-						<button className="btn hover:scale-110 transition-transform" title="Duplicar" onClick={onDup}>⎘</button>
-						<button className="btn hover:scale-110 transition-transform" title="Editar" onClick={onEdit}>✏️</button>
-						<button className="btn hover:scale-110 transition-transform" title="Excluir" onClick={onDel}>🗑️</button>
-					</div>
-				)}
-			</div>
-
-			<div 
-				style={{ 
-					height: currentHeight + "px",
-					// Transição suave da altura
-					transition: isResizing ? 'none' : 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-				}} 
-				className="rounded-xl overflow-hidden bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-700 relative"
-			>
-				<WidgetRenderer w={w} />
-				
-				{/* Preview overlay melhorado - com z-index menor */}
-				{isResizing && resizePreview && (
-					<div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}> {/* z-index muito menor */}
-						{/* Overlay semi-transparente */}
-						<div className="absolute inset-0 bg-blue-500/5"></div>
-						
-						{/* Bordas do preview */}
-						<div className="absolute inset-0 border-2 border-blue-500/60 rounded-xl animate-pulse"></div>
-						
-						{/* Indicador de tamanho */}
-						<div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg">
-							{Math.round(resizePreview.width)}×{Math.round(resizePreview.height)}px
-						</div>
-					</div>
-				)}
-			</div>
-
-			<div className="mt-3 flex flex-wrap items-center gap-2 text-xs opacity-60">
-				<span>Tipo: {w.type}</span>
-				<span>•</span>
-				{hasCustomWidth ? (
-					<>
-						<span>Largura: {Math.round(displayWidth || currentWidth)}px</span>
-						<span>•</span>
-						<span>Altura: {Math.round(currentHeight)}px</span>
-					</>
-				) : (
-					<>
-						<span>Colunas: {resizePreview?.span ?? baseSpan}/12</span>
-						<span>•</span>
-						<span>Altura: {Math.round(currentHeight)}px</span>
-					</>
-				)}
-				{isResizing && (
-					<>
-						<span>•</span>
-						<span className="text-blue-600 font-medium">Redimensionando...</span>
-					</>
-				)}
-			</div>
-		</div>
-	);
+      {/* Info do widget */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs opacity-60">
+        <span>Tipo: {w.type}</span>
+        <span>•</span>
+        <span>Largura: {currentWidth}px</span>
+        <span>•</span>
+        <span>Altura: {currentHeight}px</span>
+        
+        {isResizing && (
+          <>
+            <span>•</span>
+            <span className="text-blue-600 font-medium">Redimensionando {resizeDirection}...</span>
+          </>
+        )}
+        
+        {isDragging && (
+          <>
+            <span>•</span>
+            <span className="text-blue-600 font-medium">Movendo...</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default WidgetCard;
