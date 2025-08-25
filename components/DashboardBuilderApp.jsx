@@ -1,0 +1,745 @@
+"use client";
+
+import React, { useEffect, useRef, useState } from "react";
+import Papa from "papaparse";
+import WidgetCard from "./WidgetCard";
+import WidgetEditorModal from "./WidgetEditorModal";
+import { safeJsonParse } from "./utils";
+import { saveDashboards, loadDashboards, subscribeToChanges, getLastUpdateInfo, getDashboard, getDashboardBySlug, saveDashboardData } from "../lib/dashboard-persistence";
+import UserMenu from "./UserMenu";
+import ShareModal from "./ShareModal";
+
+const LS_KEY = "econ-crypto-dashboard-v1";
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+const defaultDash = (name = "Main") => ({ id: uid(), name, widgets: [] });
+
+// safeJsonParse vem de ./utils
+
+function download(filename, text) {
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function chartConfigFromCSV(raw, opts = {}) {
+  const out = Papa.parse((raw || "").trim(), { header: true, dynamicTyping: true, skipEmptyLines: true });
+  const rows = out.data || [];
+  const fields = out.meta?.fields || [];
+  return {
+    sourceType: "paste",
+    raw,
+    url: "",
+    format: "csv",
+    data: rows,
+    xField: opts.xField || fields[0] || "",
+    yFields: opts.yFields || fields.slice(1),
+    chartType: opts.chartType || "line",
+    stacked: !!opts.stacked,
+    showLegend: true,
+    showGrid: true,
+  };
+}
+
+function tableConfigFromCSV(raw, opts = {}) {
+  const out = Papa.parse((raw || "").trim(), { header: true, dynamicTyping: true, skipEmptyLines: true });
+  const rows = out.data || [];
+  return {
+    sourceType: "paste",
+    raw,
+    url: "",
+    format: "csv",
+    data: rows,
+    maxRows: opts.maxRows ?? 500,
+    stickyHeader: opts.stickyHeader ?? true,
+  };
+}
+
+function createPresetDashboards() {
+  const tvBTC = "https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ABTCUSDT&interval=60&hidesidetoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&theme=light&style=1&timezone=Etc%2FUTC&withdateranges=1&hideideas=1";
+  const tvDXY = "https://s.tradingview.com/widgetembed/?symbol=TVC%3ADXY&interval=D&hidesidetoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&theme=light&style=1&timezone=Etc%2FUTC&withdateranges=1&hideideas=1";
+
+  const cryptoCSV = `date,btc,eth\n2025-08-01,62000,3200\n2025-08-02,62500,3220\n2025-08-03,61800,3185\n2025-08-04,63000,3250\n2025-08-05,64000,3305`;
+  const macroCSV = `date,cpi_yoy,unemployment_rate\n2025-03,3.5,3.9\n2025-04,3.4,3.9\n2025-05,3.3,4.0\n2025-06,3.2,4.0\n2025-07,3.1,4.0`;
+  const tableCSV = `rank,name,symbol,price,mcap_usd\n1,Bitcoin,BTC,64000,1260000000000\n2,Ethereum,ETH,3300,396000000000\n3,BNB,BNB,600,92000000000\n4,Solana,SOL,140,65000000000\n5,USDT,USDT,1,118000000000`;
+
+  const dashCripto = {
+    id: uid(),
+    name: "Cripto",
+    widgets: [
+      { id: uid(), type: "iframe", title: "BTC/USDT — TradingView", span: 8, height: 420, config: { url: tvBTC, allowFull: true, border: true } },
+      { id: uid(), type: "iframe", title: "DXY — TradingView", span: 4, height: 420, config: { url: tvDXY, allowFull: true, border: true } },
+      { id: uid(), type: "chart", title: "BTC x ETH (amostra)", span: 12, height: 320, config: chartConfigFromCSV(cryptoCSV) },
+      { id: uid(), type: "table", title: "Top moedas (amostra)", span: 12, height: 280, config: tableConfigFromCSV(tableCSV) },
+    ],
+  };
+
+  const dashMacro = {
+    id: uid(),
+    name: "Macro",
+    widgets: [
+      { id: uid(), type: "chart", title: "Inflação (YoY) x Desemprego (amostra)", span: 12, height: 360, config: chartConfigFromCSV(macroCSV) },
+    ],
+  };
+
+  return [defaultDash(), dashCripto, dashMacro];
+}
+
+export default function DashboardBuilderApp() {
+  const initialDashRef = useRef(null);
+  if (!initialDashRef.current) initialDashRef.current = [];
+  const [dashboards, setDashboards] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [editMode, setEditMode] = useState(true);
+  const [dark, setDark] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingWidget, setEditingWidget] = useState(null);
+  const [renameState, setRenameState] = useState({ open: false, id: null, name: "" });
+  const [deleteState, setDeleteState] = useState({ open: false, id: null });
+  const [draggingId, setDraggingId] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [lastUpdateInfo, setLastUpdateInfo] = useState(null);
+  const [isOnline, setIsOnline] = useState(true);
+  const lastUpdateAtRef = useRef(null);
+  const activeIdRef = useRef(activeId);
+  const initializedRef = useRef(false);
+  const [currentDashMeta, setCurrentDashMeta] = useState(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [isBooting, setIsBooting] = useState(true);
+  const [canAddWidgets, setCanAddWidgets] = useState(false);
+
+  const dashboardsEqual = (a, b) => {
+    try {
+      if (a === b) return true;
+      if (!Array.isArray(a) || !Array.isArray(b)) return false;
+      if (a.length !== b.length) return false;
+      // Comparação superficial por id + JSON dos widgets para evitar trocas desnecessárias
+      for (let i = 0; i < a.length; i++) {
+        if (a[i]?.id !== b[i]?.id) return false;
+        const aw = a[i]?.widgets || [];
+        const bw = b[i]?.widgets || [];
+        if (aw.length !== bw.length) return false;
+      }
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  // On mount, load persisted settings (dashboards, theme, help visibility)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Tentar carregar do Supabase primeiro
+    const loadFromSupabase = async () => {
+      try {
+        const data = await loadDashboards()
+        if (data && Array.isArray(data) && data.length > 0) {
+          setDashboards(data)
+          setActiveId((prev) => (data.some((d) => d.id === prev) ? prev : (data[0]?.id || null)))
+          console.log('Dashboards carregados do Supabase (compartilhado)')
+
+          // Carregar info da última atualização
+          const updateInfo = await getLastUpdateInfo()
+          setLastUpdateInfo(updateInfo)
+          lastUpdateAtRef.current = updateInfo?.updated_at || null
+        } else {
+          // Fallback para localStorage
+          const fromLS = safeJsonParse(localStorage.getItem(LS_KEY));
+          if (Array.isArray(fromLS) && fromLS.length) {
+            setDashboards(fromLS);
+            setActiveId(fromLS[0]?.id || null);
+          } else {
+            setDashboards([]);
+            setActiveId(null);
+          }
+        }
+        initializedRef.current = true;
+        setIsBooting(false);
+      } catch (error) {
+        console.error('Erro ao carregar do Supabase:', error)
+        // Fallback para localStorage
+        const fromLS = safeJsonParse(localStorage.getItem(LS_KEY));
+        if (Array.isArray(fromLS) && fromLS.length) {
+          setDashboards(fromLS);
+          setActiveId(fromLS[0]?.id || null);
+        } else {
+          setDashboards([]);
+          setActiveId(null);
+        }
+        setIsBooting(false);
+      }
+    }
+
+    // Se houver ?d=<id> ou ?p=<slug>, carregar esse dashboard específico
+    const url = new URL(window.location.href);
+    const byId = url.searchParams.get('d');
+    const bySlug = url.searchParams.get('p');
+    if (byId || bySlug) {
+      (async () => {
+        try {
+          const remote = bySlug ? await getDashboardBySlug(bySlug) : await getDashboard(byId);
+          if (remote && Array.isArray(remote.data)) {
+            setDashboards(remote.data);
+            setActiveId(remote.data[0]?.id || null);
+            setCurrentDashMeta({ id: remote.id, name: remote.name, is_public: remote.is_public, public_slug: remote.public_slug });
+            lastUpdateAtRef.current = remote.updated_at || null;
+            initializedRef.current = true;
+            setIsBooting(false);
+          } else {
+            await loadFromSupabase();
+          }
+        } catch (e) {
+          await loadFromSupabase();
+        }
+      })();
+    } else {
+      loadFromSupabase();
+    }
+
+    // Sincronização em tempo real
+    const subscription = currentDashMeta?.id ? null : subscribeToChanges((newDashboards) => {
+      if (newDashboards && Array.isArray(newDashboards)) {
+        // Evitar sobrescrever estado se não mudou
+        setDashboards((prev) => (dashboardsEqual(prev, newDashboards) ? prev : newDashboards));
+        // Preservar dashboard ativo; só alterar se ele não existir mais
+        const current = activeIdRef.current;
+        if (!newDashboards.some((d) => d.id === (current ?? activeId))) {
+          setActiveId(newDashboards[0]?.id || null);
+        }
+        console.log('Dashboard atualizado via realtime (compartilhado)')
+        // Atualiza horário imediatamente
+        const nowIso = new Date().toISOString();
+        lastUpdateAtRef.current = nowIso;
+        setLastUpdateInfo({ updated_at: nowIso });
+        setSaveStatus("Atualizado por outro usuário!")
+        setTimeout(() => setSaveStatus(""), 3000)
+      }
+    })
+
+    // Estado inicial do tema já vem do <html> via layout.js; não forçar aqui para evitar flash
+
+    try {
+      setShowHelp(localStorage.getItem('dash-show-help') !== '0');
+    } catch { }
+
+    return () => {
+      subscription?.unsubscribe?.()
+    }
+  }, []);
+
+  // Polling de atualização (fallback quando Realtime não estiver habilitado) — apenas modo antigo por usuário
+  useEffect(() => {
+    if (currentDashMeta?.id) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const info = await getLastUpdateInfo();
+        if (cancelled) return;
+        if (info?.updated_at && info.updated_at !== lastUpdateAtRef.current && initializedRef.current) {
+          const data = await loadDashboards();
+          if (cancelled) return;
+          if (data && Array.isArray(data)) {
+            setDashboards((prev) => (dashboardsEqual(prev, data) ? prev : data));
+            const current = activeIdRef.current;
+            if (!data.some((d) => d.id === (current ?? activeId))) {
+              setActiveId(data[0]?.id || null);
+            }
+            setSaveStatus("Atualizado do servidor");
+            setTimeout(() => setSaveStatus(""), 2000);
+          }
+          lastUpdateAtRef.current = info.updated_at;
+          setLastUpdateInfo(info);
+        }
+      } catch { }
+    }, 10000); // 10s
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Salvar no localStorage como fallback
+      localStorage.setItem(LS_KEY, JSON.stringify(dashboards));
+
+      if (dashboards.length > 0) {
+        if (currentDashMeta?.id) {
+          saveDashboardData(currentDashMeta.id, dashboards).then(({ error }) => {
+            if (error) {
+              console.log('Erro ao salvar no Supabase (dashboard), usando localStorage')
+              setIsOnline(false)
+            } else {
+              setIsOnline(true)
+              const nowIso = new Date().toISOString();
+              lastUpdateAtRef.current = nowIso;
+              setLastUpdateInfo({ updated_at: nowIso });
+              setSaveStatus("Sincronizado!")
+              setTimeout(() => setSaveStatus(""), 2000)
+            }
+          })
+        } else {
+          saveDashboards(dashboards).then(({ error }) => {
+            if (error) {
+              console.log('Erro ao salvar no Supabase, usando localStorage')
+              setIsOnline(false)
+            } else {
+              console.log('Salvo no Supabase com sucesso')
+              setIsOnline(true)
+              const nowIso = new Date().toISOString();
+              lastUpdateAtRef.current = nowIso;
+              setLastUpdateInfo({ updated_at: nowIso });
+              setSaveStatus("Sincronizado!")
+              setTimeout(() => setSaveStatus(""), 2000)
+            }
+          })
+        }
+      }
+    }
+  }, [dashboards]);
+
+  // Atualiza flag para mostrar o botão de adicionar widget apenas quando existir ao menos uma página
+  useEffect(() => {
+    setCanAddWidgets(Array.isArray(dashboards) && dashboards.length > 0);
+  }, [dashboards]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem("dash-dark-mode", dark ? "1" : "0");
+      } catch { }
+      const root = document.documentElement;
+      if (dark) root.classList.add("dark");
+      else root.classList.remove("dark");
+    }
+  }, [dark]);
+
+  // Lock background scroll when any modal is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const anyModalOpen = showAddModal || renameState.open || deleteState.open;
+    const body = document.body;
+    if (anyModalOpen) body.classList.add('no-scroll');
+    else body.classList.remove('no-scroll');
+    return () => body.classList.remove('no-scroll');
+  }, [showAddModal, renameState.open, deleteState.open]);
+
+
+
+  const activeDash = Array.isArray(dashboards) && dashboards.length
+    ? (dashboards.find((d) => d && d.id === activeId) || dashboards[0])
+    : null;
+
+  useEffect(() => {
+    if (!activeId && Array.isArray(dashboards) && dashboards.length) {
+      setActiveId(dashboards[0]?.id || null);
+    }
+  }, [dashboards, activeId]);
+
+  const addDashboard = () => {
+    const base = "Dashboard";
+    const existing = new Set(dashboards.map((d) => d.name));
+    let i = dashboards.length + 1;
+    let name = `${base} ${i}`;
+    while (existing.has(name)) {
+      i += 1;
+      name = `${base} ${i}`;
+    }
+    const d = { id: uid(), name, widgets: [] };
+    setDashboards((prev) => [...prev, d]);
+    // Volta ao comportamento original: selecionar a nova página imediatamente
+    setActiveId(d.id);
+    setCanAddWidgets(true);
+  };
+
+  const openRename = (id) => {
+    const d = dashboards.find((x) => x.id === id);
+    if (!d) return;
+    setRenameState({ open: true, id, name: d.name });
+  };
+
+  const applyRename = () => {
+    const { id, name } = renameState;
+    if (!id) return setRenameState({ open: false, id: null, name: "" });
+    const newName = (name || "").trim();
+    if (!newName) return;
+    setDashboards((prev) => prev.map((d) => (d.id === id ? { ...d, name: newName } : d)));
+    setRenameState({ open: false, id: null, name: "" });
+  };
+
+  const openDelete = (id) => setDeleteState({ open: true, id });
+
+  const applyDelete = () => {
+    const { id } = deleteState;
+    if (!id) return setDeleteState({ open: false, id: null });
+    setDashboards((prev) => {
+      const filtered = prev.filter((d) => d.id !== id);
+      const nextActive = (filtered.find((x) => x.id === activeId) ? activeId : (filtered[0]?.id || null));
+      setActiveId(nextActive);
+      return filtered;
+    });
+    setDeleteState({ open: false, id: null });
+  };
+
+  const setWidgets = (widgets) => {
+    setDashboards((prev) => prev.map((d) => (d.id === activeDash.id ? { ...d, widgets } : d)));
+  };
+
+  // Drag & Drop handlers (reordenar widgets)
+  const handleDragStart = (e, id) => {
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      // Alguns navegadores exigem setData para habilitar DnD
+      e.dataTransfer.setData('text/plain', String(id));
+    } catch { }
+    setDraggingId(id);
+  };
+  const handleDragEnd = () => setDraggingId(null);
+  const handleDragOver = (e, overId) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    if (!draggingId || draggingId === overId) return;
+    const arr = [...(activeDash.widgets || [])];
+    const from = arr.findIndex((x) => x.id === draggingId);
+    const to = arr.findIndex((x) => x.id === overId);
+    if (from === -1 || to === -1 || from === to) return;
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    setWidgets(arr);
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDraggingId(null);
+  };
+
+  const openAddModal = () => {
+    setEditingWidget({
+      id: uid(),
+      type: "iframe",
+      title: "Novo widget",
+      span: 6,
+      height: 360,
+      config: { url: "", html: "", allowFull: true, border: true },
+      _isNew: true,
+    });
+    setShowAddModal(true);
+  };
+
+  const saveWidget = (w) => {
+    if (w._isNew) {
+      const nw = { ...w };
+      delete nw._isNew;
+      setWidgets([...(activeDash.widgets || []), nw]);
+    } else {
+      setWidgets((activeDash.widgets || []).map((x) => (x.id === w.id ? w : x)));
+    }
+    setShowAddModal(false);
+    setEditingWidget(null);
+  };
+
+  const editWidget = (id) => {
+    const w = (activeDash.widgets || []).find((x) => x.id === id);
+    if (w) {
+      setEditingWidget({ ...w });
+      setShowAddModal(true);
+    }
+  };
+
+  const duplicateWidget = (id) => {
+    const w = (activeDash.widgets || []).find((x) => x.id === id);
+    if (!w) return;
+    const copy = { ...w, id: uid(), title: w.title + " (cópia)" };
+    setWidgets([...(activeDash.widgets || []), copy]);
+  };
+
+  const deleteWidget = (id) => {
+    setWidgets((activeDash.widgets || []).filter((x) => x.id !== id));
+    // Se o widget sendo editado foi excluído, fechar a modal
+    if (editingWidget && editingWidget.id === id) {
+      setShowAddModal(false);
+      setEditingWidget(null);
+    }
+  };
+
+  const moveWidget = (id, dir) => {
+    const arr = [...(activeDash.widgets || [])];
+    const idx = arr.findIndex((x) => x.id === id);
+    if (idx < 0) return;
+    const swapWith = dir === "up" ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= arr.length) return;
+    [arr[idx], arr[swapWith]] = [arr[swapWith], arr[idx]];
+    setWidgets(arr);
+  };
+
+  const resizeWidget = (id, updates) => {
+
+    console.log('📏 Pai recebeu resize:', id, updates);
+    console.log('📋 Widgets antes:', activeDash.widgets?.find(w => w.id === id));
+
+    setWidgets((activeDash.widgets || []).map((w) =>
+      w.id === id ? { ...w, ...updates } : w
+    ));
+
+    // Log após atualização (próximo render)
+    setTimeout(() => {
+      console.log('✅ Widget depois:', activeDash.widgets?.find(w => w.id === id));
+    }, 0);
+
+  };
+
+  const exportJSON = () => {
+    try {
+      const payload = JSON.stringify(dashboards, null, 2);
+      download("dashboards.json", payload);
+    } catch (e) {
+      const payload = JSON.stringify(dashboards);
+      const url = "data:application/json;charset=utf-8," + encodeURIComponent(payload);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "dashboards.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  const importJSON = async (file) => {
+    const text = await file.text();
+    const data = safeJsonParse(text);
+    if (!Array.isArray(data)) {
+      alert("Arquivo inválido: esperado um array de dashboards");
+      return;
+    }
+    setDashboards(data);
+    setActiveId(data[0]?.id || null);
+  };
+
+  // Função para salvar backup automático
+  const saveBackup = () => {
+    const backup = {
+      dashboards,
+      timestamp: new Date().toISOString(),
+      version: "1.0"
+    };
+    localStorage.setItem("dashboard-backup", JSON.stringify(backup));
+    setSaveStatus("Backup salvo!");
+    setTimeout(() => setSaveStatus(""), 2000);
+  };
+
+  // Função para restaurar backup
+  const restoreBackup = () => {
+    const backup = localStorage.getItem("dashboard-backup");
+    if (backup) {
+      try {
+        const data = JSON.parse(backup);
+        if (data.dashboards && Array.isArray(data.dashboards)) {
+          setDashboards(data.dashboards);
+          setActiveId(data.dashboards[0]?.id || null);
+          alert("Backup restaurado com sucesso!");
+        }
+      } catch (err) {
+        alert("Erro ao restaurar backup");
+      }
+    } else {
+      alert("Nenhum backup encontrado");
+    }
+  };
+
+  // Função para sincronizar com múltiplos dispositivos (usando localStorage + timestamp)
+  const syncData = () => {
+    const syncKey = "dashboard-sync";
+    const currentData = {
+      dashboards,
+      timestamp: Date.now(),
+      deviceId: localStorage.getItem("device-id") || Math.random().toString(36).slice(2)
+    };
+
+    // Salvar dados locais
+    localStorage.setItem(syncKey, JSON.stringify(currentData));
+
+    // Verificar se há dados mais recentes de outros dispositivos
+    const lastSync = localStorage.getItem("last-sync-check");
+    if (lastSync && Date.now() - parseInt(lastSync) < 30000) {
+      return; // Verificar no máximo a cada 30 segundos
+    }
+
+    localStorage.setItem("last-sync-check", Date.now().toString());
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+      {isBooting ? (
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-pulse text-sm opacity-70">Carregando…</div>
+        </div>
+      ) : (
+        <>
+          <div className="sticky top-0 z-10 border-b bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur border-neutral-200 dark:border-neutral-800">
+            <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-semibold">Crypto & Macro Dashboard</h1>
+              <span className="opacity-60 text-sm">— construa o seu workspace de gráficos</span>
+              {saveStatus && (
+                <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
+                  {saveStatus}
+                </span>
+              )}
+              <div className="flex items-center gap-2 text-xs">
+                <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="opacity-60">
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <a href="/dashboards" className="btn">Dashboards</a>
+                {currentDashMeta?.id && (
+                  <button className="btn" onClick={() => setShareOpen(true)}>Compartilhar</button>
+                )}
+                <UserMenu />
+                <button className="btn" onClick={() => setDark((v) => !v)} title="Alternar tema">
+                  {dark ? "🌙" : "☀️"} <span className="hidden sm:inline">Tema</span>
+                </button>
+                <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)}>
+                  ✏️ {editMode ? "Modo edição ON" : "Editar"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-7xl px-4 pt-4">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {(dashboards || []).map((d) => (
+                <button
+                  key={d.id}
+                  className={`btn ${d.id === activeId ? "btn-primary" : ""}`}
+                  onClick={() => setActiveId(d.id)}
+                >
+                  {d.name}
+                </button>
+              ))}
+              <button className="btn" onClick={addDashboard}>➕ Nova página</button>
+              <div className="ml-auto flex items-center gap-2">
+                {activeDash && (
+                  <>
+                    <button className="btn" onClick={() => openRename(activeDash.id)}>Renomear</button>
+                    <button className="btn" onClick={() => openDelete(activeDash.id)}>Excluir</button>
+                  </>
+                )}
+                <button className="btn" onClick={exportJSON}>Exportar</button>
+                <label className="btn cursor-pointer">
+                  Importar
+                  <input hidden type="file" accept="application/json" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) importJSON(file);
+                  }} />
+                </label>
+
+              </div>
+            </div>
+
+            {editMode && (currentDashMeta?.id || canAddWidgets) && dashboards.length > 0 && (
+              <div className="mb-4">
+                <button className="btn btn-primary" onClick={openAddModal}>➕ Adicionar widget</button>
+              </div>
+            )}
+
+            {/* Empty state now simplified: no central button, rely on toolbar "Nova página" */}
+            {Array.isArray(dashboards) && dashboards.length === 0 && (
+              <div className="my-10 text-center opacity-70 text-sm">
+                Nenhuma página ainda — use "Nova página" acima para começar.
+              </div>
+            )}
+
+            <div className="grid-12 pb-12">
+              {(activeDash?.widgets || []).map((w) => (
+                <WidgetCard
+                  key={w.id}
+                  w={w}
+                  editMode={editMode}
+                  onEdit={() => editWidget(w.id)}
+                  onDup={() => duplicateWidget(w.id)}
+                  onDel={() => deleteWidget(w.id)}
+                  onMoveUp={() => moveWidget(w.id, "up")}
+                  onMoveDown={() => moveWidget(w.id, "down")}
+                  onResize={resizeWidget}
+                  // Drag & Drop
+                  draggable={editMode}
+                  onDragStart={(e) => handleDragStart(e, w.id)}
+                  onDragOver={(e) => handleDragOver(e, w.id)}
+                  onDrop={(e) => handleDrop(e)}
+                  onDragEnd={handleDragEnd}
+                  isDragging={draggingId === w.id}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {showAddModal && (
+        <WidgetEditorModal
+          initial={editingWidget}
+          onClose={() => { setShowAddModal(false); setEditingWidget(null); }}
+          onSave={saveWidget}
+        />
+      )}
+
+      {renameState.open && (
+        <div className="modal" onClick={() => setRenameState({ open: false, id: null, name: "" })}>
+          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="text-lg font-semibold mb-2">Renomear dashboard</div>
+            <input
+              className="w-full rounded-xl border px-3 py-2 bg-transparent"
+              value={renameState.name}
+              onChange={(e) => setRenameState((s) => ({ ...s, name: e.target.value }))}
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button className="btn" onClick={() => setRenameState({ open: false, id: null, name: "" })}>Cancelar</button>
+              <button className="btn btn-primary" onClick={applyRename}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteState.open && (
+        <div className="modal" onClick={() => setDeleteState({ open: false, id: null })}>
+          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="text-lg font-semibold mb-2">Excluir dashboard</div>
+            <div className="opacity-80 text-sm">Tem certeza que deseja excluir este dashboard? Esta ação não pode ser desfeita.</div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button className="btn" onClick={() => setDeleteState({ open: false, id: null })}>Cancelar</button>
+              <button className="btn btn-primary" onClick={applyDelete}>Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isBooting && shareOpen && currentDashMeta?.id && (
+        <ShareModal
+          dashboardId={currentDashMeta.id}
+          isPublic={currentDashMeta.is_public}
+          publicSlug={currentDashMeta.public_slug}
+          onClose={() => setShareOpen(false)}
+          onChanged={async () => {
+            const meta = await getDashboard(currentDashMeta.id);
+            if (meta) setCurrentDashMeta({ id: meta.id, name: meta.name, is_public: meta.is_public, public_slug: meta.public_slug });
+          }}
+        />
+      )}
+    </div>
+  );
+}

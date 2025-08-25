@@ -1,0 +1,43 @@
+{
+  "name": "criptodashboard",
+  "version": "1.0.0",
+  "description": "Crypto & Macro Dashboard - Dashboard interativo para análise de criptomoedas e dados macroeconômicos",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
+    "next": "^14.0.0",
+    "papaparse": "^5.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.8.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/papaparse": "^5.3.14",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5"
+  },
+  "keywords": [
+    "crypto",
+    "dashboard",
+    "macro",
+    "trading",
+    "charts",
+    "react",
+    "nextjs"
+  ],
+  "author": "",
+  "license": "MIT"
+}
