@@ -582,10 +582,10 @@ export default function DashboardBuilderApp() {
                 )}
                 <UserMenu />
                 <button className="btn" onClick={() => setDark((v) => !v)} title="Alternar tema">
-                  {dark ? "🌙" : "☀️"} <span className="hidden sm:inline">Tema</span>
+                  {dark ? "🌙" : "☀️"}
                 </button>
-                <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)}>
-                  ✏️ {editMode ? "Modo edição ON" : "Editar"}
+                <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)} title={editMode ? "Modo edição ON" : "Editar"}>
+                  ✏️
                 </button>
               </div>
             </div>
@@ -662,12 +662,12 @@ export default function DashboardBuilderApp() {
               {/* Mensagem quando não há widgets */}
               {(activeDash?.widgets || []).length === 0 && (
                 <div 
-                  className="flex items-center justify-center py-20 opacity-50 w-full"
+                  className="col-span-full flex items-center justify-center min-h-[60vh] opacity-50"
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-2">📊</div>
-                    <div className="text-sm">Nenhum widget ainda</div>
-                    {editMode && <div className="text-xs mt-1">Use "Adicionar widget" para começar</div>}
+                    <div className="text-4xl mb-4">📊</div>
+                    <div className="text-lg mb-2">Nenhum widget ainda</div>
+                    {editMode && <div className="text-sm opacity-75">Use "Adicionar widget" para começar</div>}
                   </div>
                 </div>
               )}

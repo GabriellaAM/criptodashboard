@@ -135,10 +135,10 @@ function WidgetCard({
       
       {/* Removido indicador de drop zone */}
 
-      {/* Handles de resize - visíveis apenas no hover e durante resize */}
+      {/* Handles de resize - apenas direções que funcionam bem com CSS Grid */}
       {editMode && (
         <>
-          {/* Handle horizontal (direita) - visível no hover e durante resize */}
+          {/* Handle horizontal (direita) - redimensionar largura */}
           <div 
             className={`absolute -right-1 top-8 bottom-8 w-4 cursor-ew-resize transition-all duration-200 rounded-r-xl flex items-center justify-center z-10 ${
               isResizing ? 'opacity-100 bg-blue-500/30' : 'opacity-0 hover:opacity-100 group-hover:opacity-100 bg-transparent hover:bg-blue-500/20'
@@ -148,8 +148,8 @@ function WidgetCard({
           >
             <div className="w-1 h-8 bg-blue-500 rounded-full opacity-70"></div>
           </div>
-          
-          {/* Handle vertical (baixo) - visível no hover e durante resize */}
+
+          {/* Handle vertical (baixo) - redimensionar altura */}
           <div 
             className={`absolute left-8 right-8 -bottom-1 h-4 cursor-ns-resize transition-all duration-200 rounded-b-xl flex items-center justify-center z-10 ${
               isResizing ? 'opacity-100 bg-blue-500/30' : 'opacity-0 hover:opacity-100 group-hover:opacity-100 bg-transparent hover:bg-blue-500/20'
@@ -160,9 +160,9 @@ function WidgetCard({
             <div className="w-8 h-1 bg-blue-500 rounded-full opacity-70"></div>
           </div>
           
-          {/* Handle diagonal (canto) - visível no hover e durante resize */}
+          {/* Handle diagonal (canto inferior direito) - redimensionar ambos */}
           <div 
-            className={`absolute -right-1 -bottom-1 w-6 h-6 cursor-nwse-resize transition-all duration-200 rounded-tl-lg rounded-br-xl flex items-center justify-center z-10 ${
+            className={`absolute -right-1 -bottom-1 w-6 h-6 cursor-nwse-resize transition-all duration-200 rounded-br-xl flex items-center justify-center z-10 ${
               isResizing ? 'opacity-100 bg-blue-500/50' : 'opacity-0 hover:opacity-100 group-hover:opacity-100 bg-transparent hover:bg-blue-500/30'
             }`}
             onMouseDown={(e) => handleResize(e, 'both')}
@@ -219,14 +219,6 @@ function WidgetCard({
           </div>
         )}
         
-        {/* Badge de status durante resize */}
-        {isResizing && (
-          <div className="shrink-0">
-            <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-              📏 Redimensionando
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Conteúdo do widget - com altura fixa */}
@@ -270,14 +262,6 @@ function WidgetCard({
           📐 {currentWidth}×{currentHeight}px
         </span>
         
-        {isResizing && (
-          <>
-            <span>•</span>
-            <span className="text-purple-600 font-medium flex items-center gap-1">
-              📏 Redimensionando {resizeDirection}...
-            </span>
-          </>
-        )}
         
         {editMode && !isResizing && (
           <>
