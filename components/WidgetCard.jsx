@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, memo } from "react";
 import WidgetRenderer from "./WidgetRenderer";
 
 function WidgetCard({ 
@@ -292,4 +292,16 @@ function WidgetCard({
   );
 }
 
-export default WidgetCard;
+// Memoizar o WidgetCard para evitar re-renderizações desnecessárias
+export default memo(WidgetCard, (prevProps, nextProps) => {
+  // Só re-renderizar se props importantes mudaram
+  return (
+    prevProps.w.id === nextProps.w.id &&
+    prevProps.w.width === nextProps.w.width &&
+    prevProps.w.height === nextProps.w.height &&
+    prevProps.w.type === nextProps.w.type &&
+    prevProps.w.title === nextProps.w.title &&
+    prevProps.editMode === nextProps.editMode &&
+    JSON.stringify(prevProps.w.config) === JSON.stringify(nextProps.w.config)
+  );
+});

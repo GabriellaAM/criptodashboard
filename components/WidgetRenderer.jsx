@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import ChartWidget from "./ChartWidget";
 import TableWidget from "./TableWidget";
 import KPIWidget from "./KPIWidget";
@@ -54,7 +54,7 @@ function WidgetRenderer({ w }) {
     return false;
   });
   
-  // Função para verificar tema com debounce
+  // Função para verificar tema com debounce maior
   const checkTheme = useCallback(
     debounce(() => {
       const currentDarkMode = document.documentElement.classList.contains('dark');
@@ -65,25 +65,24 @@ function WidgetRenderer({ w }) {
         }
         return prevDarkMode;
       });
-    }, 100), // Debounce de 100ms
+    }, 300), // Debounce maior - 300ms
     []
   );
   
-  // Monitorar mudanças no tema de forma mais eficiente
+  // Monitorar mudanças no tema de forma menos agressiva
   useEffect(() => {
-    // Verificar tema inicial
+    // Só verificar tema inicial
     checkTheme();
     
-    // Observar mudanças na classe do documento
+    // Observar mudanças apenas quando necessário
     const observer = new MutationObserver((mutations) => {
-      // Verificar se alguma mutação realmente afetou a classe 'dark'
+      // Só verificar se houve mudança real na classe 'dark'
       const hasThemeChange = mutations.some(mutation => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           const target = mutation.target;
           const oldClasses = mutation.oldValue ? mutation.oldValue.split(' ') : [];
           const newClasses = Array.from(target.classList);
           
-          // Verificar se especificamente a classe 'dark' mudou
           const oldHasDark = oldClasses.includes('dark');
           const newHasDark = newClasses.includes('dark');
           
@@ -92,19 +91,21 @@ function WidgetRenderer({ w }) {
         return false;
       });
       
+      // Só chamar checkTheme se realmente mudou
       if (hasThemeChange) {
         checkTheme();
       }
     });
     
+    // Observar apenas mudanças na classe, com throttle
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class'],
-      attributeOldValue: true // Necessário para comparar valores antigos
+      attributeOldValue: true
     });
     
     return () => observer.disconnect();
-  }, [checkTheme]);
+  }, []); // Sem dependência de checkTheme para evitar re-criação
   
   // Memorizar a URL do iframe para evitar recálculos desnecessários
   const memoizedIframeUrl = useMemo(() => {
@@ -123,7 +124,7 @@ function WidgetRenderer({ w }) {
     case "iframe":
       return (
         <iframe
-          key={`${w.id}-${isDarkMode ? 'dark' : 'light'}`}
+          key={w.id} // Key estável - só muda se o widget for diferente
           src={memoizedIframeUrl}
           className="w-full h-full"
           style={{ border: memoizedBorderStyle }}
@@ -151,4 +152,12 @@ function WidgetRenderer({ w }) {
   }
 }
 
-export default WidgetRenderer;
+// Memoizar o WidgetRenderer para evitar re-renderizações desnecessárias
+export default memo(WidgetRenderer, (prevProps, nextProps) => {
+  // Só re-renderizar se o widget realmente mudou
+  return (
+    prevProps.w.id === nextProps.w.id &&
+    prevProps.w.type === nextProps.w.type &&
+    JSON.stringify(prevProps.w.config) === JSON.stringify(nextProps.w.config)
+  );
+});
