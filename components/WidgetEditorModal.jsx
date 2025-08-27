@@ -28,6 +28,13 @@ function parseDataByFormat(raw, format) {
 
 function normalizeConfig(type, cfg) {
   switch (type) {
+    case "text":
+      return { 
+        text: cfg?.text || "", 
+        size: cfg?.size || "large",
+        alignment: cfg?.alignment || "left",
+        color: cfg?.color || "default"
+      };
     case "iframe":
       return { url: cfg?.url || "", allowFull: cfg?.allowFull ?? true, border: cfg?.border ?? true };
     case "embed":
@@ -184,6 +191,61 @@ function TableEditorControls({ config, setConfig }) {
 }
 
 function TypeSpecificEditor({ type, config, setConfig }) {
+  if (type === "text") {
+    return (
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-12">
+          <label className="block text-sm mb-1">Texto</label>
+          <textarea
+            className="w-full rounded-xl border px-3 py-2 bg-transparent min-h-[100px]"
+            placeholder="Digite seu texto ou nota..."
+            value={config.text}
+            onChange={(e) => setConfig({ ...config, text: e.target.value })}
+          />
+        </div>
+        <div className="col-span-12 sm:col-span-4">
+          <label className="block text-sm mb-1">Tamanho</label>
+          <select
+            className="w-full rounded-xl border px-3 py-2 bg-transparent"
+            value={config.size}
+            onChange={(e) => setConfig({ ...config, size: e.target.value })}
+          >
+            <option value="small">Pequeno (H3)</option>
+            <option value="medium">Médio (H2)</option>
+            <option value="large">Grande (H1)</option>
+          </select>
+        </div>
+        <div className="col-span-12 sm:col-span-4">
+          <label className="block text-sm mb-1">Alinhamento</label>
+          <select
+            className="w-full rounded-xl border px-3 py-2 bg-transparent"
+            value={config.alignment}
+            onChange={(e) => setConfig({ ...config, alignment: e.target.value })}
+          >
+            <option value="left">Esquerda</option>
+            <option value="center">Centro</option>
+            <option value="right">Direita</option>
+          </select>
+        </div>
+        <div className="col-span-12 sm:col-span-4">
+          <label className="block text-sm mb-1">Cor</label>
+          <select
+            className="w-full rounded-xl border px-3 py-2 bg-transparent"
+            value={config.color}
+            onChange={(e) => setConfig({ ...config, color: e.target.value })}
+          >
+            <option value="default">Padrão</option>
+            <option value="primary">Azul</option>
+            <option value="success">Verde</option>
+            <option value="warning">Amarelo</option>
+            <option value="danger">Vermelho</option>
+            <option value="muted">Cinza</option>
+          </select>
+        </div>
+      </div>
+    );
+  }
+
   if (type === "iframe") {
     return (
       <div className="grid grid-cols-12 gap-3">
@@ -525,6 +587,7 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
   const save = () => {
     if (!w.title?.trim()) return alert("Dê um título ao widget");
     if (w.type === "iframe" && !w.config?.url) return alert("Informe a URL do iframe");
+    if (w.type === "text" && !w.config?.text?.trim()) return alert("Informe o texto da nota");
 
     let payload = { ...w };
          if (w.type === "chart" || w.type === "table") {
@@ -624,6 +687,7 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
               value={w.type}
               onChange={(e) => setW((p) => ({ ...p, type: e.target.value, config: normalizeConfig(e.target.value, w.config) }))}
             >
+              <option value="text">📝 Texto/Nota</option>
               <option value="iframe">Iframe</option>
               <option value="embed">HTML Embed</option>
               <option value="chart">Chart (Recharts)</option>

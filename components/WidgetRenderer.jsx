@@ -121,6 +121,48 @@ function WidgetRenderer({ w }) {
   }, [w.config?.border, isDarkMode]);
   
   switch (w.type) {
+    case "text":
+      const getSizeClass = (size) => {
+        switch(size) {
+          case 'small': return 'text-lg font-semibold';
+          case 'medium': return 'text-xl font-bold';
+          case 'large': return 'text-2xl font-bold';
+          default: return 'text-2xl font-bold';
+        }
+      };
+      
+      const getAlignmentClass = (alignment) => {
+        switch(alignment) {
+          case 'left': return 'text-left';
+          case 'center': return 'text-center';
+          case 'right': return 'text-right';
+          default: return 'text-left';
+        }
+      };
+      
+      const getColorClass = (color) => {
+        switch(color) {
+          case 'primary': return 'text-blue-600 dark:text-blue-400';
+          case 'success': return 'text-green-600 dark:text-green-400';
+          case 'warning': return 'text-yellow-600 dark:text-yellow-400';
+          case 'danger': return 'text-red-600 dark:text-red-400';
+          case 'muted': return 'text-gray-500 dark:text-gray-400';
+          default: return 'text-gray-900 dark:text-gray-100';
+        }
+      };
+      
+      return (
+        <div className="w-full h-full flex items-start p-4">
+          <div className={`
+            ${getSizeClass(w.config?.size)} 
+            ${getAlignmentClass(w.config?.alignment)} 
+            ${getColorClass(w.config?.color)}
+            w-full leading-relaxed whitespace-pre-wrap
+          `}>
+            {w.config?.text || 'Texto da nota'}
+          </div>
+        </div>
+      );
     case "iframe":
       return (
         <iframe

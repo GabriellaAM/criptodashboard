@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Papa from "papaparse";
 import WidgetCard from "./WidgetCard";
 import WidgetEditorModal from "./WidgetEditorModal";
@@ -10,7 +10,7 @@ import UserMenu from "./UserMenu";
 import ShareModal from "./ShareModal";
 
 const LS_KEY = "econ-crypto-dashboard-v1";
-const uid = () => Math.random().toString(36).slice(2, 9);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 
 const defaultDash = (name = "Main") => ({ id: uid(), name, widgets: [] });
 
@@ -107,6 +107,7 @@ export default function DashboardBuilderApp() {
   const [editingWidget, setEditingWidget] = useState(null);
   const [renameState, setRenameState] = useState({ open: false, id: null, name: "" });
   const [deleteState, setDeleteState] = useState({ open: false, id: null });
+  const [titleEditState, setTitleEditState] = useState({ open: false, id: null, text: "", size: "medium" });
   const [draggingId, setDraggingId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("");
   const [lastUpdateInfo, setLastUpdateInfo] = useState(null);
@@ -418,28 +419,81 @@ export default function DashboardBuilderApp() {
   };
 
   const setWidgets = (widgets) => {
-    setDashboards((prev) => prev.map((d) => (d.id === activeDash.id ? { ...d, widgets } : d)));
+    if (!activeDash?.id) {
+      console.error('❌ setWidgets: activeDash.id é nulo');
+      return;
+    }
+    
+    console.log('📝 setWidgets: atualizando', widgets.length, 'widgets no dashboard', activeDash.id);
+    
+    setDashboards((prev) => {
+      const newDashboards = prev.map((d) => (d.id === activeDash.id ? { ...d, widgets } : d));
+      console.log('📝 setWidgets: dashboards atualizados');
+      return newDashboards;
+    });
   };
 
   const openAddModal = () => {
     setEditingWidget({
       id: uid(),
-      type: "iframe",
-      title: "Novo widget",
-      width: 350, // Tamanho fácil de redimensionar
-      height: 250,
-      config: { url: "", html: "", allowFull: true, border: true },
+      type: "text", // Widget de texto
+      title: "Nova nota",
+      width: 600, 
+      height: 200,
+      config: { text: "Sua nota aqui...", size: "medium", alignment: "left", color: "default" },
       _isNew: true,
     });
     setShowAddModal(true);
   };
 
+  const addTitle = () => {
+    if (!activeDash) return;
+    
+    const titleWidget = {
+      id: uid(),
+      type: "section-title", // Novo tipo específico para títulos estilo Notion
+      title: "Título da seção",
+      text: "Nova seção",
+      size: "large", // large, medium, small
+      isTitle: true // Flag para identificar que é um título especial
+    };
+    
+    setWidgets([...(activeDash.widgets || []), titleWidget]);
+  };
+
+  const editSectionTitle = (id) => {
+    const widget = (activeDash.widgets || []).find(w => w.id === id);
+    if (!widget) return;
+    
+    setTitleEditState({
+      open: true,
+      id: id,
+      text: widget.text || "",
+      size: widget.size || "medium"
+    });
+  };
+
+  const saveTitleEdit = () => {
+    const { id, text, size } = titleEditState;
+    if (!id) return;
+    
+    setWidgets((activeDash.widgets || []).map(w => 
+      w.id === id ? { ...w, text: text.trim() || "Título vazio", size } : w
+    ));
+    
+    setTitleEditState({ open: false, id: null, text: "", size: "medium" });
+  };
+
   const saveWidget = (w) => {
+    console.log('💾 saveWidget chamado:', { id: w.id, title: w.title, type: w.type, _isNew: w._isNew });
+    
     if (w._isNew) {
       const nw = { ...w };
       delete nw._isNew;
+      console.log('➕ Adicionando novo widget:', nw.id, 'tipo:', nw.type);
       setWidgets([...(activeDash.widgets || []), nw]);
     } else {
+      console.log('✏️ Editando widget existente:', w.id);
       setWidgets((activeDash.widgets || []).map((x) => (x.id === w.id ? w : x)));
     }
     setShowAddModal(false);
@@ -455,6 +509,7 @@ export default function DashboardBuilderApp() {
   };
 
   const duplicateWidget = (id) => {
+    if (!activeDash) return; // Proteção contra activeDash nulo
     const w = (activeDash.widgets || []).find((x) => x.id === id);
     if (!w) return;
     
@@ -467,7 +522,23 @@ export default function DashboardBuilderApp() {
   };
 
   const deleteWidget = (id) => {
-    setWidgets((activeDash.widgets || []).filter((x) => x.id !== id));
+    if (!activeDash) {
+      console.error('❌ deleteWidget: activeDash é nulo');
+      return;
+    }
+    
+    console.log('🗑️ Deletando widget ID:', id);
+    console.log('🗑️ Widgets antes:', activeDash.widgets?.map(w => ({ id: w.id, title: w.title, type: w.type })));
+    
+    const widgetsBefore = activeDash.widgets || [];
+    const widgetToDelete = widgetsBefore.find(w => w.id === id);
+    const widgetsAfter = widgetsBefore.filter((x) => x.id !== id);
+    
+    console.log('🗑️ Widget sendo deletado:', widgetToDelete);
+    console.log('🗑️ Widgets restantes:', widgetsAfter.map(w => ({ id: w.id, title: w.title, type: w.type })));
+    
+    setWidgets(widgetsAfter);
+    
     if (editingWidget && editingWidget.id === id) {
       setShowAddModal(false);
       setEditingWidget(null);
@@ -475,6 +546,7 @@ export default function DashboardBuilderApp() {
   };
 
   const moveWidget = (id, direction) => {
+    if (!activeDash) return; // Proteção contra activeDash nulo
     const widgets = [...(activeDash.widgets || [])];
     const currentIndex = widgets.findIndex((x) => x.id === id);
     if (currentIndex < 0) return;
@@ -622,8 +694,9 @@ export default function DashboardBuilderApp() {
             </div>
 
             {editMode && (currentDashMeta?.id || canAddWidgets) && dashboards.length > 0 && (
-              <div className="mb-4">
+              <div className="mb-4 flex items-center gap-2">
                 <button className="btn btn-primary" onClick={openAddModal}>➕ Adicionar widget</button>
+                <button className="btn" onClick={addTitle}>📋 Adicionar título</button>
               </div>
             )}
 
@@ -645,19 +718,37 @@ export default function DashboardBuilderApp() {
                 alignItems: 'start'
               }}
             >
-              {(activeDash?.widgets || []).map((w) => (
-                <WidgetCard
-                  key={w.id}
-                  w={w}
-                  editMode={editMode}
-                  onEdit={() => editWidget(w.id)}
-                  onDup={() => duplicateWidget(w.id)}
-                  onDel={() => deleteWidget(w.id)}
-                  onMoveUp={() => moveWidget(w.id, "up")}
-                  onMoveDown={() => moveWidget(w.id, "down")}
-                  onResize={resizeWidget}
-                />
-              ))}
+              {(activeDash?.widgets || []).map((w) => {
+                // Renderizar títulos de seção de forma especial (sem card)
+                if (w.type === "section-title") {
+                  return (
+                    <SectionTitle
+                      key={w.id}
+                      widget={w}
+                      editMode={editMode}
+                      onEdit={() => editSectionTitle(w.id)}
+                      onDelete={() => deleteWidget(w.id)}
+                      onMoveUp={() => moveWidget(w.id, "up")}
+                      onMoveDown={() => moveWidget(w.id, "down")}
+                    />
+                  );
+                }
+                
+                // Renderizar widgets normais com card
+                return (
+                  <WidgetCard
+                    key={w.id}
+                    w={w}
+                    editMode={editMode}
+                    onEdit={() => editWidget(w.id)}
+                    onDup={() => duplicateWidget(w.id)}
+                    onDel={() => deleteWidget(w.id)}
+                    onMoveUp={() => moveWidget(w.id, "up")}
+                    onMoveDown={() => moveWidget(w.id, "down")}
+                    onResize={resizeWidget}
+                  />
+                );
+              })}
               
               {/* Mensagem quando não há widgets */}
               {(activeDash?.widgets || []).length === 0 && (
@@ -714,6 +805,47 @@ export default function DashboardBuilderApp() {
         </div>
       )}
 
+      {titleEditState.open && (
+        <div className="modal" onClick={() => setTitleEditState({ open: false, id: null, text: "", size: "medium" })}>
+          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="text-lg font-semibold mb-4">Editar título</div>
+            
+            <div className="mb-3">
+              <label className="block text-sm mb-1">Texto do título</label>
+              <input
+                className="w-full rounded-xl border px-3 py-2 bg-transparent"
+                placeholder="Digite o texto do título..."
+                value={titleEditState.text}
+                onChange={(e) => setTitleEditState(prev => ({ ...prev, text: e.target.value }))}
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm mb-1">Tamanho</label>
+              <select
+                className="w-full rounded-xl border px-3 py-2 bg-transparent"
+                value={titleEditState.size}
+                onChange={(e) => setTitleEditState(prev => ({ ...prev, size: e.target.value }))}
+              >
+                <option value="small">Pequeno</option>
+                <option value="medium">Médio</option>
+                <option value="large">Grande</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button className="btn" onClick={() => setTitleEditState({ open: false, id: null, text: "", size: "medium" })}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={saveTitleEdit}>
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!isBooting && shareOpen && currentDashMeta?.id && (
         <ShareModal
           dashboardId={currentDashMeta.id}
@@ -728,6 +860,35 @@ export default function DashboardBuilderApp() {
       )}
       
       {/* CSS removidos - não são mais necessários */}
+    </div>
+  );
+}
+
+// Componente para títulos de seção estilo Notion (sem card)
+function SectionTitle({ widget, editMode, onEdit, onDelete, onMoveUp, onMoveDown }) {
+  const getSizeClass = (size) => {
+    switch (size) {
+      case 'small': return 'text-lg font-semibold';
+      case 'medium': return 'text-xl font-bold'; 
+      case 'large': return 'text-2xl font-bold';
+      default: return 'text-2xl font-bold';
+    }
+  };
+
+  return (
+    <div className="col-span-full flex items-center group py-2">
+      <h2 className={`${getSizeClass(widget.size)} text-gray-900 dark:text-gray-100 leading-tight flex-1 ${editMode ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''}`}
+          onClick={editMode ? onEdit : undefined}
+          title={editMode ? "Clique para editar" : undefined}>
+        {widget.text || 'Título da seção'}
+      </h2>
+      {editMode && (
+        <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          <button className="btn-sm hover:scale-110 transition-transform" onClick={onMoveUp} title="Mover para esquerda">←</button>
+          <button className="btn-sm hover:scale-110 transition-transform" onClick={onMoveDown} title="Mover para direita">→</button>
+          <button className="btn-sm hover:bg-red-100 dark:hover:bg-red-900 text-red-600" onClick={onDelete} title="Excluir título">🗑️</button>
+        </div>
+      )}
     </div>
   );
 }
