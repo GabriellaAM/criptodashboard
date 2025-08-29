@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from "react";
 import ChartWidget from "./ChartWidget";
 import TableWidget from "./TableWidget";
 import KPIWidget from "./KPIWidget";
@@ -164,25 +164,9 @@ function WidgetRenderer({ w }) {
         </div>
       );
     case "iframe":
-      return (
-        <iframe
-          key={w.id} // Key estável - só muda se o widget for diferente
-          src={memoizedIframeUrl}
-          className="w-full h-full"
-          style={{ border: memoizedBorderStyle }}
-          allowFullScreen={!!w.config?.allowFull}
-        />
-      );
+      return <AutoResizeIframe w={w} memoizedIframeUrl={memoizedIframeUrl} memoizedBorderStyle={memoizedBorderStyle} />;
     case "embed":
-      return (
-        <div
-          className="w-full h-full overflow-auto"
-          dangerouslySetInnerHTML={{ 
-            __html: w.config?.html || 
-            "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>" 
-          }}
-        />
-      );
+      return <AutoResizeEmbed w={w} />;
     case "chart":
       return <ChartWidget config={w.config} />;
     case "table":
@@ -192,6 +176,91 @@ function WidgetRenderer({ w }) {
     default:
       return <div className="p-4 opacity-60">Tipo desconhecido.</div>;
   }
+}
+
+// Componente que força redimensionamento de iframe
+function AutoResizeIframe({ w, memoizedIframeUrl, memoizedBorderStyle }) {
+  const containerRef = useRef(null);
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const iframe = iframeRef.current;
+    if (!container || !iframe) return;
+
+    const forceResize = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        iframe.style.width = `${rect.width}px`;
+        iframe.style.height = `${rect.height}px`;
+        console.log(`🔄 Iframe ${w.id}: redimensionado para ${rect.width}x${rect.height}`);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(forceResize);
+    resizeObserver.observe(container);
+    
+    // Resize inicial
+    setTimeout(forceResize, 100);
+
+    return () => resizeObserver.disconnect();
+  }, [w.id]);
+
+  return (
+    <div ref={containerRef} className="w-full h-full">
+      <iframe
+        ref={iframeRef}
+        key={w.id}
+        src={memoizedIframeUrl}
+        style={{ 
+          border: memoizedBorderStyle,
+          display: 'block'
+        }}
+        allowFullScreen={!!w.config?.allowFull}
+      />
+    </div>
+  );
+}
+
+// Componente que força redimensionamento de HTML embed
+function AutoResizeEmbed({ w }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const forceResize = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        // Forçar todos os iframes dentro do embed
+        const iframes = container.querySelectorAll('iframe, object, embed');
+        iframes.forEach(iframe => {
+          iframe.style.width = `${rect.width}px`;
+          iframe.style.height = `${rect.height}px`;
+        });
+        console.log(`🔄 Embed ${w.id}: redimensionado para ${rect.width}x${rect.height}, ${iframes.length} elementos`);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(forceResize);
+    resizeObserver.observe(container);
+    
+    // Resize inicial após carregar HTML
+    setTimeout(forceResize, 200);
+
+    return () => resizeObserver.disconnect();
+  }, [w.id, w.config?.html]);
+
+  return (
+    <div 
+      ref={containerRef}
+      className="w-full h-full overflow-hidden"
+      dangerouslySetInnerHTML={{ 
+        __html: w.config?.html || "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>"
+      }}
+    />
+  );
 }
 
 // Memoizar o WidgetRenderer para evitar re-renderizações desnecessárias

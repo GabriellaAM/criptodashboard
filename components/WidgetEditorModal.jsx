@@ -571,6 +571,7 @@ function TypeSpecificEditor({ type, config, setConfig }) {
     );
   }
 
+
   return null;
 }
 
