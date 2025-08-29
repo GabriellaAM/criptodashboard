@@ -152,15 +152,30 @@ function WidgetRenderer({ w }) {
       };
       
       return (
-        <div className="w-full h-full flex items-start p-4">
+        <div className="w-full h-full flex flex-col items-start p-4 overflow-auto">
           <div className={`
             ${getSizeClass(w.config?.size)} 
             ${getAlignmentClass(w.config?.alignment)} 
             ${getColorClass(w.config?.color)}
-            w-full leading-relaxed whitespace-pre-wrap
+            w-full leading-relaxed whitespace-pre-wrap mb-3
           `}>
             {w.config?.text || 'Texto da nota'}
           </div>
+          
+          {/* Galeria de imagens */}
+          {w.config?.images && w.config.images.length > 0 && (
+            <div className="w-full space-y-3 mt-4">
+              {w.config.images.map((img, idx) => (
+                <div key={idx} className="relative">
+                  <img 
+                    src={img.url} 
+                    alt={img.name}
+                    className="w-full h-auto max-w-full max-h-96 object-contain rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     case "iframe":

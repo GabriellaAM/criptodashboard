@@ -486,11 +486,15 @@ export default function DashboardBuilderApp() {
 
   const saveWidget = (w) => {
     console.log('💾 saveWidget chamado:', { id: w.id, title: w.title, type: w.type, _isNew: w._isNew });
+    console.log('💾 saveWidget config recebido:', w.config);
+    console.log('💾 saveWidget config.images:', w.config?.images?.length || 0);
     
     if (w._isNew) {
       const nw = { ...w };
       delete nw._isNew;
       console.log('➕ Adicionando novo widget:', nw.id, 'tipo:', nw.type);
+      console.log('➕ Novo widget config:', nw.config);
+      console.log('➕ Novo widget config.images:', nw.config?.images?.length || 0);
       setWidgets([...(activeDash.widgets || []), nw]);
     } else {
       console.log('✏️ Editando widget existente:', w.id);

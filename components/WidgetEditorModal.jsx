@@ -26,6 +26,55 @@ function parseDataByFormat(raw, format) {
   return { rows, fields: [] };
 }
 
+// Função para upload de imagens
+function handleImageUpload(event, config, setConfig) {
+  console.log('🖼️ handleImageUpload chamado:', event.target.files.length, 'arquivos');
+  const files = Array.from(event.target.files);
+  
+  if (files.length === 0) {
+    console.log('❌ Nenhum arquivo selecionado');
+    return;
+  }
+  
+  files.forEach((file, index) => {
+    console.log(`📁 Arquivo ${index + 1}:`, file.name, file.type, file.size);
+    
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        console.log('✅ Imagem carregada:', file.name);
+        const newImage = {
+          name: file.name,
+          url: e.target.result, // Base64 data URL
+          size: file.size
+        };
+        
+        console.log('🎯 About to call setConfig with newImage:', newImage);
+        console.log('🎯 Current config before update:', config);
+        
+        const newConfig = {
+          ...config,
+          images: [...(config.images || []), newImage]
+        };
+        
+        console.log('📝 Nova config após adicionar imagem:', newConfig);
+        console.log('📝 Novas imagens:', newConfig.images?.length || 0);
+        
+        setConfig(newConfig);
+      };
+      reader.onerror = (e) => {
+        console.error('❌ Erro ao carregar imagem:', file.name, e);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      console.log('⚠️ Arquivo ignorado (não é imagem):', file.name, file.type);
+    }
+  });
+  
+  // Limpar o input
+  event.target.value = '';
+}
+
 function normalizeConfig(type, cfg) {
   switch (type) {
     case "text":
@@ -33,7 +82,8 @@ function normalizeConfig(type, cfg) {
         text: cfg?.text || "", 
         size: cfg?.size || "large",
         alignment: cfg?.alignment || "left",
-        color: cfg?.color || "default"
+        color: cfg?.color || "default",
+        images: Array.isArray(cfg?.images) ? cfg.images : []
       };
     case "iframe":
       return { url: cfg?.url || "", allowFull: cfg?.allowFull ?? true, border: cfg?.border ?? true };
@@ -241,6 +291,42 @@ function TypeSpecificEditor({ type, config, setConfig }) {
             <option value="danger">Vermelho</option>
             <option value="muted">Cinza</option>
           </select>
+        </div>
+
+        <div className="col-span-12">
+          <label className="block text-sm mb-1">Imagens</label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="w-full rounded-xl border px-3 py-2 bg-transparent text-sm"
+            onChange={(e) => handleImageUpload(e, config, setConfig)}
+          />
+          
+          {config.images && config.images.length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {config.images.map((img, idx) => (
+                <div key={idx} className="relative group">
+                  <img 
+                    src={img.url} 
+                    alt={img.name}
+                    className="w-full h-20 object-cover rounded border"
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      const newImages = config.images.filter((_, i) => i !== idx);
+                      setConfig({ ...config, images: newImages });
+                    }}
+                  >
+                    ×
+                  </button>
+                  <div className="text-xs opacity-60 mt-1 truncate">{img.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -586,9 +672,17 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
   const update = (patch) => setW((p) => ({ ...p, ...patch }));
 
   const save = () => {
+    console.log('🚀 SAVE FUNCTION CALLED');
+    console.log('🚀 Current widget state w:', w);
+    console.log('🚀 Current widget state w.config:', w.config);
+    console.log('🚀 Current widget state w.config.images:', w.config?.images);
+    
     if (!w.title?.trim()) return alert("Dê um título ao widget");
     if (w.type === "iframe" && !w.config?.url) return alert("Informe a URL do iframe");
     if (w.type === "text" && !w.config?.text?.trim()) return alert("Informe o texto da nota");
+
+    console.log('🔍 Pre-save widget config:', w.config);
+    console.log('🔍 Pre-save widget config images:', w.config?.images?.length || 0);
 
     let payload = { ...w };
          if (w.type === "chart" || w.type === "table") {
@@ -635,6 +729,9 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
       }
       payload = { ...w, config: cfg };
     }
+
+    console.log('💾 Final payload config:', payload.config);
+    console.log('💾 Final payload config images:', payload.config?.images?.length || 0);
 
     onSave(payload);
   };
@@ -699,7 +796,16 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
         </div>
 
         <div className="mt-4">
-          <TypeSpecificEditor type={w.type} config={w.config} setConfig={(cfg) => setW((p) => ({ ...p, config: cfg }))} />
+          <TypeSpecificEditor type={w.type} config={w.config} setConfig={(cfg) => {
+            console.log('🔧 TypeSpecificEditor setConfig called with:', cfg);
+            console.log('🔧 TypeSpecificEditor setConfig cfg.images:', cfg?.images?.length || 0);
+            setW((p) => {
+              const newW = { ...p, config: cfg };
+              console.log('🔧 Updated widget state:', newW);
+              console.log('🔧 Updated widget config.images:', newW.config?.images?.length || 0);
+              return newW;
+            });
+          }} />
         </div>
       </div>
     </div>
