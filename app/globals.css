@@ -106,3 +106,107 @@ html.dark .btn-primary:hover {
   padding: 1rem;
   z-index: 50;
 }
+
+/* Estilos simples para iframes */
+iframe {
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* Scroll moderno e elegante */
+.overflow-auto {
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.overflow-auto::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: transparent !important;
+  border-radius: 10px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4) !important;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: all 0.2s ease;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7) !important;
+  border: 1px solid transparent;
+}
+
+.overflow-auto::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+/* Tema escuro */
+html.dark .overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5) !important;
+}
+
+html.dark .overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8) !important;
+}
+
+/* Firefox */
+.overflow-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+
+html.dark .overflow-auto {
+  scrollbar-color: rgba(107, 114, 128, 0.5) transparent;
+}
+
+/* Estilos para ocultar barras de scroll */
+.scrollbar-hide {
+  /* Firefox */
+  scrollbar-width: none;
+  /* IE/Edge */
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  /* Chrome, Safari, Opera */
+  display: none;
+}
+
+/* Estilos para scroll customizado */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}

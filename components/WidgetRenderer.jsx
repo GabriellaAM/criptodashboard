@@ -119,7 +119,7 @@ function WidgetRenderer({ w }) {
       "1px solid rgba(255,255,255,0.1)" : 
       "1px solid rgba(0,0,0,0.08)";
   }, [w.config?.border, isDarkMode]);
-  
+
   switch (w.type) {
     case "text":
       const getSizeClass = (size) => {
@@ -152,7 +152,7 @@ function WidgetRenderer({ w }) {
       };
       
       return (
-        <div className="w-full h-full flex items-start p-4">
+        <div className="w-full h-full p-4 overflow-auto">
           <div className={`
             ${getSizeClass(w.config?.size)} 
             ${getAlignmentClass(w.config?.alignment)} 
@@ -168,94 +168,48 @@ function WidgetRenderer({ w }) {
     case "embed":
       return <AutoResizeEmbed w={w} />;
     case "chart":
-      return <ChartWidget config={w.config} />;
+      return (
+        <div className="w-full h-full overflow-auto">
+          <ChartWidget config={w.config} />
+        </div>
+      );
     case "table":
       return <TableWidget config={w.config} />;
     case "kpi":
-      return <KPIWidget config={w.config} />;
+      return (
+        <div className="w-full h-full overflow-auto">
+          <KPIWidget config={w.config} />
+        </div>
+      );
     default:
       return <div className="p-4 opacity-60">Tipo desconhecido.</div>;
   }
 }
 
-// Componente que força redimensionamento de iframe
+// Componente simples para iframe
 function AutoResizeIframe({ w, memoizedIframeUrl, memoizedBorderStyle }) {
-  const containerRef = useRef(null);
-  const iframeRef = useRef(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    const iframe = iframeRef.current;
-    if (!container || !iframe) return;
-
-    const forceResize = () => {
-      const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        iframe.style.width = `${rect.width}px`;
-        iframe.style.height = `${rect.height}px`;
-        console.log(`🔄 Iframe ${w.id}: redimensionado para ${rect.width}x${rect.height}`);
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(forceResize);
-    resizeObserver.observe(container);
-    
-    // Resize inicial
-    setTimeout(forceResize, 100);
-
-    return () => resizeObserver.disconnect();
-  }, [w.id]);
-
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div className="w-full h-full">
       <iframe
-        ref={iframeRef}
         key={w.id}
         src={memoizedIframeUrl}
         style={{ 
           border: memoizedBorderStyle,
-          display: 'block'
+          width: '100%',
+          height: '100%'
         }}
         allowFullScreen={!!w.config?.allowFull}
+        scrolling="auto"
       />
     </div>
   );
 }
 
-// Componente que força redimensionamento de HTML embed
+// Componente simples para HTML embed - SEM redimensionamento forçado
 function AutoResizeEmbed({ w }) {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const forceResize = () => {
-      const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        // Forçar todos os iframes dentro do embed
-        const iframes = container.querySelectorAll('iframe, object, embed');
-        iframes.forEach(iframe => {
-          iframe.style.width = `${rect.width}px`;
-          iframe.style.height = `${rect.height}px`;
-        });
-        console.log(`🔄 Embed ${w.id}: redimensionado para ${rect.width}x${rect.height}, ${iframes.length} elementos`);
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(forceResize);
-    resizeObserver.observe(container);
-    
-    // Resize inicial após carregar HTML
-    setTimeout(forceResize, 200);
-
-    return () => resizeObserver.disconnect();
-  }, [w.id, w.config?.html]);
-
   return (
     <div 
-      ref={containerRef}
-      className="w-full h-full overflow-hidden"
+      className="w-full h-full overflow-auto"
       dangerouslySetInnerHTML={{ 
         __html: w.config?.html || "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>"
       }}

@@ -71,6 +71,17 @@ date,btc,eth
 2024-01-03,47000,2900
 ```
 
+### Configurando Widgets de Iframe com Scroll
+
+1. Selecione **"Iframe"** como tipo
+2. Cole a URL do iframe no campo "URL"
+3. Configure as opções de scroll:
+   - **Scroll Horizontal**: Automático, Sempre visível ou Oculto
+   - **Scroll Vertical**: Automático, Sempre visível ou Oculto
+   - **Mostrar barras de scroll**: Para estilos customizados
+
+**Ideal para**: Gráficos do TradingView, dashboards externos e outros conteúdos embutidos.
+
 ## 🎨 Personalização
 
 ### Temas

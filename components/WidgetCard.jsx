@@ -228,7 +228,7 @@ function WidgetCard({
           width: '100%',
           transition: isResizing ? 'none' : 'height 0.2s ease'
         }} 
-        className="rounded-lg overflow-hidden border relative bg-neutral-50 dark:bg-neutral-900 border-neutral-200/60 dark:border-neutral-700 transition-colors duration-200"
+        className="rounded-lg overflow-auto border relative bg-neutral-50 dark:bg-neutral-900 border-neutral-200/60 dark:border-neutral-700 transition-colors duration-200"
       >
         <WidgetRenderer w={w} />
         

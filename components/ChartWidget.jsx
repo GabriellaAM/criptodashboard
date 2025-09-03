@@ -54,24 +54,26 @@ function ChartWidget({ config }) {
   const ChartTag = config.chartType === "bar" ? BarChart : config.chartType === "area" ? AreaChart : LineChart;
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ChartTag data={data} margin={{ top: 16, right: 20, bottom: 4, left: 10 }}>
-        {config.showGrid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis dataKey={xKey} minTickGap={12} />
-        <YAxis />
-        <Tooltip />
-        {config.showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
-        {yKeys.map((k) => {
-          if (config.chartType === "bar") {
-            return <Bar key={k} dataKey={k} stackId={config.stacked ? "a" : undefined} fillOpacity={0.9} />;
-          }
-          if (config.chartType === "area") {
-            return <Area key={k} dataKey={k} stackId={config.stacked ? "a" : undefined} type="monotone" fillOpacity={0.25} />;
-          }
-          return <Line key={k} dataKey={k} type="monotone" dot={false} strokeWidth={2} />;
-        })}
-      </ChartTag>
-    </ResponsiveContainer>
+    <div style={{ minWidth: '600px', minHeight: '400px', width: '100%', height: '100%' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ChartTag data={data} margin={{ top: 16, right: 20, bottom: 4, left: 10 }}>
+          {config.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+          <XAxis dataKey={xKey} minTickGap={12} />
+          <YAxis />
+          <Tooltip />
+          {config.showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
+          {yKeys.map((k) => {
+            if (config.chartType === "bar") {
+              return <Bar key={k} dataKey={k} stackId={config.stacked ? "a" : undefined} fillOpacity={0.9} />;
+            }
+            if (config.chartType === "area") {
+              return <Area key={k} dataKey={k} stackId={config.stacked ? "a" : undefined} type="monotone" fillOpacity={0.25} />;
+            }
+            return <Line key={k} dataKey={k} type="monotone" dot={false} strokeWidth={2} />;
+          })}
+        </ChartTag>
+      </ResponsiveContainer>
+    </div>
   );
 }
 

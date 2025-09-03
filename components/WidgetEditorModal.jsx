@@ -36,7 +36,17 @@ function normalizeConfig(type, cfg) {
         color: cfg?.color || "default"
       };
     case "iframe":
-      return { url: cfg?.url || "", allowFull: cfg?.allowFull ?? true, border: cfg?.border ?? true };
+      return { 
+        url: cfg?.url || "", 
+        allowFull: cfg?.allowFull ?? true, 
+        border: cfg?.border ?? true,
+        scroll: {
+          horizontal: cfg?.scroll?.horizontal || "auto",
+          vertical: cfg?.scroll?.vertical || "auto",
+          showScrollbars: cfg?.scroll?.showScrollbars !== false,
+          forceIframeScroll: cfg?.scroll?.forceIframeScroll === true
+        }
+      };
     case "embed":
       return { html: cfg?.html || "" };
     case "chart":
@@ -248,8 +258,8 @@ function TypeSpecificEditor({ type, config, setConfig }) {
 
   if (type === "iframe") {
     return (
-      <div className="grid grid-cols-12 gap-3">
-        <div className="col-span-12">
+      <div className="space-y-4">
+        <div>
           <label className="block text-sm mb-1">URL</label>
           <input
             className="w-full rounded-xl border px-3 py-2 bg-transparent"
@@ -258,13 +268,95 @@ function TypeSpecificEditor({ type, config, setConfig }) {
             onChange={(e) => setConfig({ ...config, url: e.target.value })}
           />
         </div>
-        <div className="col-span-6 flex items-center gap-2">
-          <input id="allowFull" type="checkbox" checked={!!config.allowFull} onChange={(e) => setConfig({ ...config, allowFull: e.target.checked })} />
-          <label htmlFor="allowFull" className="text-sm">Permitir tela cheia</label>
+        
+        <div className="grid grid-cols-12 gap-3">
+          <div className="col-span-6 flex items-center gap-2">
+            <input id="allowFull" type="checkbox" checked={!!config.allowFull} onChange={(e) => setConfig({ ...config, allowFull: e.target.checked })} />
+            <label htmlFor="allowFull" className="text-sm">Permitir tela cheia</label>
+          </div>
+          <div className="col-span-6 flex items-center gap-2">
+            <input id="border" type="checkbox" checked={!!config.border} onChange={(e) => setConfig({ ...config, border: e.target.checked })} />
+            <label htmlFor="border" className="text-sm">Mostrar borda</label>
+          </div>
         </div>
-        <div className="col-span-6 flex items-center gap-2">
-          <input id="border" type="checkbox" checked={!!config.border} onChange={(e) => setConfig({ ...config, border: e.target.checked })} />
-          <label htmlFor="border" className="text-sm">Mostrar borda</label>
+
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium mb-3">Configurações de Scroll</h4>
+          <div className="grid grid-cols-12 gap-3">
+            <div className="col-span-12 sm:col-span-6">
+              <label className="block text-sm mb-1">Scroll Horizontal</label>
+              <select
+                className="w-full rounded-xl border px-3 py-2 bg-transparent"
+                value={config.scroll?.horizontal || "auto"}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  scroll: { 
+                    ...config.scroll, 
+                    horizontal: e.target.value 
+                  } 
+                })}
+              >
+                <option value="auto">Automático</option>
+                <option value="scroll">Sempre visível</option>
+                <option value="hidden">Oculto</option>
+              </select>
+            </div>
+            
+            <div className="col-span-12 sm:col-span-6">
+              <label className="block text-sm mb-1">Scroll Vertical</label>
+              <select
+                className="w-full rounded-xl border px-3 py-2 bg-transparent"
+                value={config.scroll?.vertical || "auto"}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  scroll: { 
+                    ...config.scroll, 
+                    vertical: e.target.value 
+                  } 
+                })}
+              >
+                <option value="auto">Automático</option>
+                <option value="scroll">Sempre visível</option>
+                <option value="hidden">Oculto</option>
+              </select>
+            </div>
+            
+            <div className="col-span-12">
+              <div className="flex items-center gap-2">
+                <input 
+                  id="showScrollbars" 
+                  type="checkbox" 
+                  checked={config.scroll?.showScrollbars !== false} 
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    scroll: { 
+                      ...config.scroll, 
+                      showScrollbars: e.target.checked 
+                    } 
+                  })} 
+                />
+                <label htmlFor="showScrollbars" className="text-sm">Mostrar barras de scroll</label>
+              </div>
+            </div>
+            
+            <div className="col-span-12">
+              <div className="flex items-center gap-2">
+                <input 
+                  id="forceIframeScroll" 
+                  type="checkbox" 
+                  checked={config.scroll?.forceIframeScroll === true} 
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    scroll: { 
+                      ...config.scroll, 
+                      forceIframeScroll: e.target.checked 
+                    } 
+                  })} 
+                />
+                <label htmlFor="forceIframeScroll" className="text-sm">Forçar scroll no iframe (para gráficos do FRED)</label>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

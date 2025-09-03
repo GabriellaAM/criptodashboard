@@ -62,7 +62,7 @@ function TableWidget({ config }) {
 
   return (
     <div className="w-full h-full overflow-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm" style={{ minWidth: '500px' }}>
         <thead className={`${config.stickyHeader ? "sticky top-0" : ""} bg-neutral-100 dark:bg-neutral-800`}>
           <tr>
             {cols.map((c) => (

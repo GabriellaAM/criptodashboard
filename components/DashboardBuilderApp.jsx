@@ -75,6 +75,24 @@ function createPresetDashboards() {
     widgets: [
       { id: uid(), type: "iframe", title: "BTC/USDT — Grande", width: 500, height: 400, config: { url: tvBTC, allowFull: true, border: true } },
       { id: uid(), type: "iframe", title: "DXY — Pequeno", width: 250, height: 200, config: { url: tvDXY, allowFull: true, border: true } },
+      { 
+        id: uid(), 
+        type: "iframe", 
+        title: "FRED — Inflação", 
+        width: 400, 
+        height: 300, 
+        config: { 
+          url: "https://fred.stlouisfed.org/graph/?g=1aXz", 
+          allowFull: true, 
+          border: true,
+          scroll: {
+            horizontal: "auto",
+            vertical: "auto",
+            showScrollbars: true,
+            forceIframeScroll: true
+          }
+        } 
+      },
       { id: uid(), type: "chart", title: "Gráfico — Médio", width: 350, height: 250, config: chartConfigFromCSV(cryptoCSV) },
       { id: uid(), type: "table", title: "Tabela — Largo", width: 600, height: 180, config: tableConfigFromCSV(tableCSV) },
     ],
