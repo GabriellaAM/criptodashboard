@@ -174,47 +174,61 @@ function WidgetCard({
       )}
 
       {/* Header com título e controles */}
-      <div className="flex items-start gap-2 mb-3">
-        <h3 className="text-base sm:text-lg font-semibold flex-1 truncate">
-          {w.title || "Widget"}
-        </h3>
+      <div className="flex items-start justify-between mb-8 relative">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse" />
+            <h3 className="text-lg font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-300 bg-clip-text text-transparent truncate">
+              {w.title || "Widget"}
+            </h3>
+          </div>
+          {w.type && (
+            <div className="flex items-center gap-2">
+              <div className="px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium uppercase tracking-wider">
+                  {w.type}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
         
         {editMode && (
-          <div className="flex items-center gap-1 text-sm shrink-0">
+          <div className="flex items-center gap-1">
             <button 
-              className="btn-sm hover:scale-110 transition-transform" 
+              className="btn-sm" 
               title="Mover para esquerda" 
               onClick={onMoveUp}
             >
               ←
             </button>
             <button 
-              className="btn-sm hover:scale-110 transition-transform" 
+              className="btn-sm" 
               title="Mover para direita" 
               onClick={onMoveDown}
             >
               →
             </button>
             <button 
-              className="btn-sm hover:scale-110 transition-transform" 
+              className="btn-sm" 
               title="Duplicar" 
               onClick={onDup}
             >
-              ⎘
+              ⧉
             </button>
             <button 
-              className="btn-sm hover:scale-110 transition-transform" 
+              className="btn-sm" 
               title="Editar" 
               onClick={onEdit}
             >
-              ✏️
+              ◐
             </button>
             <button 
-              className="btn-sm hover:scale-110 transition-transform text-red-600" 
+              className="btn-sm btn-destructive" 
               title="Excluir" 
               onClick={onDel}
             >
-              🗑️
+              ×
             </button>
           </div>
         )}
@@ -228,20 +242,26 @@ function WidgetCard({
           width: '100%',
           transition: isResizing ? 'none' : 'height 0.2s ease'
         }} 
-        className="rounded-lg overflow-auto border relative bg-neutral-50 dark:bg-neutral-900 border-neutral-200/60 dark:border-neutral-700 transition-colors duration-200"
+        className="rounded-2xl overflow-hidden relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-300 hover:border-indigo-200/80 dark:hover:border-indigo-600/80 group"
       >
+        {/* Subtle Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/2 via-transparent to-purple-500/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        
+        {/* Top Border Accent */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-300/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
         <WidgetRenderer w={w} />
         
         {/* Overlay durante resize */}
         {isResizing && (
-          <div className="absolute inset-0 bg-blue-500/5 border-2 border-blue-500/60 rounded-lg flex items-center justify-center backdrop-blur-sm" style={{ zIndex: 10 }}>
-            <div className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg shadow-xl font-medium">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-cyan-500/20 backdrop-blur-md border-2 border-indigo-400/50 dark:border-indigo-500/50 rounded-2xl flex items-center justify-center" style={{ zIndex: 10 }}>
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm px-6 py-3 rounded-2xl shadow-2xl font-bold border border-white/20 backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                <span>📏</span>
+                <span>□</span>
                 <span>{currentWidth}×{currentHeight}px</span>
                 {resizeDirection && (
                   <span className="text-xs opacity-75">
-                    ({resizeDirection === 'horizontal' ? '↔️' : resizeDirection === 'vertical' ? '↕️' : '↗️'})
+                    ({resizeDirection === 'horizontal' ? '↔' : resizeDirection === 'vertical' ? '↕' : '↗'})
                   </span>
                 )}
               </div>
@@ -255,11 +275,11 @@ function WidgetCard({
       {/* Info do widget */}
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs opacity-60">
         <span className="flex items-center gap-1">
-          📊 <span className="font-medium">{w.type}</span>
+          ◇ <span className="font-medium">{w.type}</span>
         </span>
         <span>•</span>
         <span className="flex items-center gap-1">
-          📐 {currentWidth}×{currentHeight}px
+          □ {currentWidth}×{currentHeight}px
         </span>
         
         
@@ -267,7 +287,7 @@ function WidgetCard({
           <>
             <span>•</span>
             <span className="text-blue-600 text-xs">
-              ✏️ Modo edição
+              ◐ Modo edição
             </span>
           </>
         )}

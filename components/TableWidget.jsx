@@ -63,17 +63,19 @@ function TableWidget({ config }) {
   return (
     <div className="w-full h-full overflow-auto">
       <table className="w-full text-sm" style={{ minWidth: '500px' }}>
-        <thead className={`${config.stickyHeader ? "sticky top-0" : ""} bg-neutral-100 dark:bg-neutral-800`}>
+        <thead className={`${config.stickyHeader ? "sticky top-0 z-10" : ""} bg-slate-50 dark:bg-slate-800/50`}>
           <tr>
             {cols.map((c) => (
-              <th key={c} className="text-left font-semibold p-2 border-b border-neutral-200 dark:border-neutral-700">
+              <th key={c} className="text-left font-semibold p-3 border-b border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                 <button
-                  className="inline-flex items-center gap-1"
+                  className="inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                   onClick={() => setSort((s) => ({ key: c, dir: s.key === c && s.dir === "asc" ? "desc" : "asc" }))}
                   title="Ordenar"
                 >
-                  {c}
-                  {sort.key === c ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
+                  <span>{c}</span>
+                  <span className="text-xs opacity-50">
+                    {sort.key === c ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+                  </span>
                 </button>
               </th>
             ))}
@@ -81,9 +83,9 @@ function TableWidget({ config }) {
         </thead>
         <tbody>
           {sorted.map((r, i) => (
-            <tr key={i} className="odd:bg-neutral-50/60 dark:odd:bg-neutral-900/50">
+            <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
               {cols.map((c) => (
-                <td key={c} className="p-2 border-b border-neutral-200/60 dark:border-neutral-800/60 align-top">
+                <td key={c} className="p-3 text-sm text-slate-900 dark:text-slate-100">
                   {formatCell(r[c])}
                 </td>
               ))}

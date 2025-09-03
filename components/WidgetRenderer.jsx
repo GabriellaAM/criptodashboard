@@ -152,14 +152,21 @@ function WidgetRenderer({ w }) {
       };
       
       return (
-        <div className="w-full h-full p-4 overflow-auto">
+        <div className="w-full h-full p-6 overflow-auto relative">
+          {/* Decorative Elements */}
+          <div className="absolute top-6 left-6 w-1 h-8 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full opacity-60" />
+          
           <div className={`
             ${getSizeClass(w.config?.size)} 
             ${getAlignmentClass(w.config?.alignment)} 
             ${getColorClass(w.config?.color)}
-            w-full leading-relaxed whitespace-pre-wrap
+            w-full leading-relaxed whitespace-pre-wrap pl-6 prose prose-slate dark:prose-invert max-w-none
           `}>
-            {w.config?.text || 'Texto da nota'}
+            {w.config?.text || (
+              <div className="text-slate-400 dark:text-slate-500 italic">
+                Clique para adicionar seu texto aqui...
+              </div>
+            )}
           </div>
         </div>
       );

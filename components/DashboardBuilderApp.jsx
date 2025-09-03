@@ -672,10 +672,10 @@ export default function DashboardBuilderApp() {
                 )}
                 <UserMenu />
                 <button className="btn" onClick={() => setDark((v) => !v)} title="Alternar tema">
-                  {dark ? "🌙" : "☀️"}
+                  {dark ? "◐" : "◑"}
                 </button>
                 <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)} title={editMode ? "Modo edição ON" : "Editar"}>
-                  ✏️
+                  ◐
                 </button>
               </div>
             </div>
@@ -692,7 +692,7 @@ export default function DashboardBuilderApp() {
                   {d.name}
                 </button>
               ))}
-              <button className="btn" onClick={addDashboard}>➕ Nova página</button>
+              <button className="btn" onClick={addDashboard}>Nova página</button>
               <div className="ml-auto flex items-center gap-2">
                 {activeDash && (
                   <>
@@ -713,8 +713,8 @@ export default function DashboardBuilderApp() {
 
             {editMode && (currentDashMeta?.id || canAddWidgets) && dashboards.length > 0 && (
               <div className="mb-4 flex items-center gap-2">
-                <button className="btn btn-primary" onClick={openAddModal}>➕ Adicionar widget</button>
-                <button className="btn" onClick={addTitle}>📋 Adicionar título</button>
+                <button className="btn btn-primary" onClick={openAddModal}>Adicionar widget</button>
+                <button className="btn" onClick={addTitle}>Adicionar título</button>
               </div>
             )}
 
@@ -774,7 +774,7 @@ export default function DashboardBuilderApp() {
                   className="col-span-full flex items-center justify-center min-h-[60vh] opacity-50"
                 >
                   <div className="text-center">
-                    <div className="text-4xl mb-4">📊</div>
+                    <div className="text-4xl mb-4">◇</div>
                     <div className="text-lg mb-2">Nenhum widget ainda</div>
                     {editMode && <div className="text-sm opacity-75">Use "Adicionar widget" para começar</div>}
                   </div>
@@ -904,7 +904,7 @@ function SectionTitle({ widget, editMode, onEdit, onDelete, onMoveUp, onMoveDown
         <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
           <button className="btn-sm hover:scale-110 transition-transform" onClick={onMoveUp} title="Mover para esquerda">←</button>
           <button className="btn-sm hover:scale-110 transition-transform" onClick={onMoveDown} title="Mover para direita">→</button>
-          <button className="btn-sm hover:bg-red-100 dark:hover:bg-red-900 text-red-600" onClick={onDelete} title="Excluir título">🗑️</button>
+          <button className="btn-sm hover:bg-red-100 dark:hover:bg-red-900 text-red-600" onClick={onDelete} title="Excluir título">×</button>
         </div>
       )}
     </div>
