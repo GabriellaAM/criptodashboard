@@ -732,13 +732,14 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
   };
 
   return (
-    <div className="modal" onClick={onClose}>
-      <div className="card w-full max-w-[95vw] sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="text-lg font-semibold">{w._isNew ? "Adicionar" : "Editar"} widget</div>
-          <div className="ml-auto" />
-          <button className="btn" onClick={onClose}>Fechar</button>
-          <button className="btn btn-primary" onClick={save}>Salvar</button>
+    <div className="modal modal-full" onClick={onClose}>
+      <div className="modal-card w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">{w._isNew ? "Adicionar" : "Editar"} widget</h2>
+          <div className="flex items-center gap-2 ml-auto">
+            <button className="btn" onClick={onClose}>Fechar</button>
+            <button className="btn btn-primary" onClick={save}>Salvar</button>
+          </div>
         </div>
 
         <div className="grid grid-cols-12 gap-3">
@@ -780,7 +781,7 @@ function WidgetEditorModal({ initial, onClose, onSave }) {
               value={w.type}
               onChange={(e) => setW((p) => ({ ...p, type: e.target.value, config: normalizeConfig(e.target.value, w.config) }))}
             >
-              <option value="text">📝 Texto/Nota</option>
+              <option value="text">Texto/Nota</option>
               <option value="iframe">Iframe</option>
               <option value="embed">HTML Embed</option>
               <option value="chart">Chart (Recharts)</option>

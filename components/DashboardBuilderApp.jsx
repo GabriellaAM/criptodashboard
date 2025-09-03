@@ -794,15 +794,17 @@ export default function DashboardBuilderApp() {
       )}
 
       {renameState.open && (
-        <div className="modal" onClick={() => setRenameState({ open: false, id: null, name: "" })}>
-          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-lg font-semibold mb-2">Renomear dashboard</div>
+        <div className="modal modal-sm" onClick={() => setRenameState({ open: false, id: null, name: "" })}>
+          <div className="modal-card w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Renomear dashboard</h2>
+            </div>
             <input
               className="w-full rounded-xl border px-3 py-2 bg-transparent"
               value={renameState.name}
               onChange={(e) => setRenameState((s) => ({ ...s, name: e.target.value }))}
             />
-            <div className="mt-3 flex justify-end gap-2">
+            <div className="modal-footer">
               <button className="btn" onClick={() => setRenameState({ open: false, id: null, name: "" })}>Cancelar</button>
               <button className="btn btn-primary" onClick={applyRename}>Salvar</button>
             </div>
@@ -811,22 +813,28 @@ export default function DashboardBuilderApp() {
       )}
 
       {deleteState.open && (
-        <div className="modal" onClick={() => setDeleteState({ open: false, id: null })}>
-          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-lg font-semibold mb-2">Excluir dashboard</div>
-            <div className="opacity-80 text-sm">Tem certeza que deseja excluir este dashboard? Esta ação não pode ser desfeita.</div>
-            <div className="mt-3 flex justify-end gap-2">
+        <div className="modal modal-sm" onClick={() => setDeleteState({ open: false, id: null })}>
+          <div className="modal-card w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Excluir dashboard</h2>
+            </div>
+            <div className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Tem certeza que deseja excluir este dashboard? Esta ação não pode ser desfeita.
+            </div>
+            <div className="modal-footer">
               <button className="btn" onClick={() => setDeleteState({ open: false, id: null })}>Cancelar</button>
-              <button className="btn btn-primary" onClick={applyDelete}>Excluir</button>
+              <button className="btn btn-destructive" onClick={applyDelete}>Excluir</button>
             </div>
           </div>
         </div>
       )}
 
       {titleEditState.open && (
-        <div className="modal" onClick={() => setTitleEditState({ open: false, id: null, text: "", size: "medium" })}>
-          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-lg font-semibold mb-4">Editar título</div>
+        <div className="modal modal-md" onClick={() => setTitleEditState({ open: false, id: null, text: "", size: "medium" })}>
+          <div className="modal-card w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Editar título</h2>
+            </div>
             
             <div className="mb-3">
               <label className="block text-sm mb-1">Texto do título</label>
@@ -852,7 +860,7 @@ export default function DashboardBuilderApp() {
               </select>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="modal-footer">
               <button className="btn" onClick={() => setTitleEditState({ open: false, id: null, text: "", size: "medium" })}>
                 Cancelar
               </button>

@@ -439,32 +439,341 @@ body::after {
   gap: 16px;
 }
 
+/* === PREMIUM MODAL SYSTEM === */
+
 .modal {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(8px);
   padding: 1rem;
   z-index: 50;
-  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(15, 23, 42, 0.15);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  animation: modalOverlayEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  cursor: pointer;
 }
 
-@keyframes fadeIn {
-  from {
+/* Advanced backdrop with depth */
+.modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 800px 600px at center,
+    rgba(79, 70, 229, 0.03),
+    transparent 70%
+  );
+  opacity: 0;
+  animation: modalBackdropGlow 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+}
+
+@keyframes modalOverlayEnter {
+  0% {
     opacity: 0;
-    backdrop-filter: blur(0px);
+    backdrop-filter: blur(0px) saturate(1);
+    -webkit-backdrop-filter: blur(0px) saturate(1);
   }
-  to {
+  100% {
     opacity: 1;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
   }
 }
 
+@keyframes modalBackdropGlow {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Dark mode backdrop */
 html.dark .modal {
-  background: rgba(2, 6, 23, 0.6);
+  background: rgba(2, 6, 23, 0.25);
+}
+
+html.dark .modal::before {
+  background: radial-gradient(
+    ellipse 800px 600px at center,
+    rgba(139, 92, 246, 0.06),
+    transparent 70%
+  );
+}
+
+/* === PREMIUM MODAL CARD STYLES === */
+
+.modal-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  box-shadow: 
+    0 32px 64px -8px rgba(15, 23, 42, 0.12),
+    0 16px 32px -4px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  padding: 32px;
+  cursor: default;
+  transform: scale(0.8) translateY(40px);
+  opacity: 0;
+  animation: modalCardEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+/* Premium glow effect */
+.modal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.3) 0%,
+    rgba(147, 51, 234, 0.2) 25%,
+    rgba(6, 182, 212, 0.2) 50%,
+    rgba(147, 51, 234, 0.2) 75%,
+    rgba(79, 70, 229, 0.3) 100%
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0;
+  animation: modalCardGlow 0.8s ease-out 0.3s forwards;
+  pointer-events: none;
+}
+
+/* Subtle inner pattern */
+.modal-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(79, 70, 229, 0.2) 20%,
+    rgba(147, 51, 234, 0.2) 80%,
+    transparent
+  );
+  opacity: 0;
+  animation: modalCardShimmer 1s ease-out 0.5s forwards;
+  pointer-events: none;
+}
+
+@keyframes modalCardEnter {
+  0% {
+    transform: scale(0.8) translateY(40px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modalCardGlow {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes modalCardShimmer {
+  0% { opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { opacity: 0.3; }
+}
+
+/* Dark mode card */
+html.dark .modal-card {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  box-shadow: 
+    0 32px 64px -8px rgba(0, 0, 0, 0.4),
+    0 16px 32px -4px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(71, 85, 105, 0.1),
+    inset 0 1px 0 rgba(148, 163, 184, 0.1),
+    inset 0 -1px 0 rgba(71, 85, 105, 0.2);
+}
+
+html.dark .modal-card::before {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.4) 0%,
+    rgba(167, 243, 208, 0.2) 25%,
+    rgba(34, 211, 238, 0.3) 50%,
+    rgba(167, 243, 208, 0.2) 75%,
+    rgba(139, 92, 246, 0.4) 100%
+  );
+}
+
+/* === MODAL HEADER STYLES === */
+
+.modal-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.1);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(79, 70, 229, 0.6),
+    rgba(147, 51, 234, 0.6)
+  );
+  border-radius: 1px;
+}
+
+html.dark .modal-header {
+  border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(
+    135deg,
+    rgb(15, 23, 42) 0%,
+    rgb(51, 65, 85) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+html.dark .modal-title {
+  background: linear-gradient(
+    135deg,
+    rgb(248, 250, 252) 0%,
+    rgb(203, 213, 225) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* === MODAL FOOTER STYLES === */
+
+.modal-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(71, 85, 105, 0.1);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+html.dark .modal-footer {
+  border-top: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+/* === RESPONSIVE MODAL SIZES === */
+
+.modal-sm .modal-card { 
+  max-width: 400px; 
+  width: 90%;
+}
+
+.modal-md .modal-card { 
+  max-width: 500px; 
+  width: 85%;
+}
+
+.modal-lg .modal-card { 
+  max-width: 700px; 
+  width: 80%;
+}
+
+.modal-xl .modal-card { 
+  max-width: 900px; 
+  width: 85%;
+}
+
+.modal-full .modal-card { 
+  max-width: 1000px; 
+  width: 80%;
+  max-height: 85vh; 
+  overflow-y: auto;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .modal-sm .modal-card,
+  .modal-md .modal-card,
+  .modal-lg .modal-card,
+  .modal-xl .modal-card,
+  .modal-full .modal-card {
+    width: 90%;
+    margin: 0 5%;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-sm .modal-card,
+  .modal-md .modal-card,
+  .modal-lg .modal-card,
+  .modal-xl .modal-card,
+  .modal-full .modal-card {
+    width: 95%;
+    margin: 0 2.5%;
+  }
+}
+
+/* Custom scrollbar for modal content */
+.modal-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-card::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.modal-card::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.2);
+  border-radius: 3px;
+  border: 1px solid rgba(79, 70, 229, 0.1);
+}
+
+.modal-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.3);
+}
+
+/* Ensure form elements work properly in modals */
+.modal-card input,
+.modal-card select,
+.modal-card textarea,
+.modal-card button {
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
+}
+
+.modal-card .dropdown-menu,
+.modal-card .menu,
+.modal-card [role="menu"],
+.modal-card [role="listbox"] {
+  pointer-events: auto;
+  position: relative;
+  z-index: 20;
 }
 
 /* Estilos simples para iframes */

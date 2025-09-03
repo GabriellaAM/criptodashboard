@@ -57,9 +57,11 @@ export default function ShareModal({ dashboardId, isPublic, publicSlug, onClose,
   const publicUrl = slug ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?p=${slug}` : '';
 
   return (
-    <div className="modal" onClick={onClose}>
-      <div className="card w-full max-w-lg" onClick={(e)=>e.stopPropagation()}>
-        <div className="text-lg font-semibold mb-3">Compartilhar dashboard</div>
+    <div className="modal modal-lg" onClick={onClose}>
+      <div className="modal-card w-full" onClick={(e)=>e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Compartilhar dashboard</h2>
+        </div>
 
         {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
         {info && <div className="mb-3 text-sm text-green-700 dark:text-green-300">{info}</div>}
@@ -121,8 +123,8 @@ export default function ShareModal({ dashboardId, isPublic, publicSlug, onClose,
           )}
         </div>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <button className="btn" onClick={onClose}>Fechar</button>
+        <div className="modal-footer">
+          <button className="btn btn-primary" onClick={onClose}>Fechar</button>
         </div>
       </div>
     </div>
