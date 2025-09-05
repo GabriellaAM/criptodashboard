@@ -83,7 +83,7 @@
     
     --gradient-surface: linear-gradient(145deg, rgb(30 41 59 / 0.9), rgb(15 23 42 / 0.8));
     --gradient-mesh: radial-gradient(at 40% 20%, rgb(99 102 241 / 0.15) 0px, transparent 50%),
-                     radial-gradient(at 80% 0%, rgb(168 85 247 / 0.1) 0px, transparent 50%),
+                     radial-gradient(at 80% 20%, rgb(168 85 247 / 0.1) 0px, transparent 50%),
                      radial-gradient(at 0% 50%, rgb(6 182 212 / 0.08) 0px, transparent 50%);
   }
 }
@@ -102,6 +102,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
   position: relative;
   overflow-x: hidden;
+}
+
+/* CORREÇÃO CRÍTICA: Garantir que o UserMenu funcione corretamente */
+[data-usermenu-dropdown] {
+  position: absolute !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Garantir que o container do UserMenu tenha posicionamento relativo */
+[data-usermenu-dropdown] {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  margin-top: 0.5rem !important;
 }
 
 /* Animated Mesh Background */

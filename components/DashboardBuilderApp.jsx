@@ -166,13 +166,27 @@ export default function DashboardBuilderApp() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Timeout de segurança para garantir que o loading não fique infinito
+    const bootTimeout = setTimeout(() => {
+      console.warn('Timeout no carregamento inicial - forçando fim do boot');
+      // Criar dashboards padrão em caso de timeout
+      const presetDashboards = createPresetDashboards();
+      setDashboards(presetDashboards);
+      setActiveId(presetDashboards[0]?.id || null);
+      setIsBooting(false);
+    }, 5000); // 5 segundos
+
+    console.log('🚀 Iniciando carregamento do dashboard...');
+
     const loadFromSupabase = async () => {
       try {
+        console.log('📡 Carregando dashboards do Supabase...');
         // Tentar carregar usando a nova estrutura (múltiplos dashboards)
         const [owned, shared] = await Promise.all([
           listOwnedDashboards(),
           listMemberDashboards()
         ]);
+        console.log('📊 Dashboards carregados:', { owned: owned?.length || 0, shared: shared?.length || 0 });
         
         // Se tiver dashboards na nova estrutura, criar dashboards locais baseados no primeiro owned
         if (owned && owned.length > 0) {
@@ -191,37 +205,44 @@ export default function DashboardBuilderApp() {
             lastUpdateAtRef.current = dashboardData.updated_at || null;
             console.log('Dashboard carregado da nova estrutura do Supabase');
             initializedRef.current = true;
+            clearTimeout(bootTimeout);
             setIsBooting(false);
             return;
           }
         }
 
         // Fallback para estrutura antiga
+        console.log('🔄 Tentando estrutura legacy...');
         const data = await loadDashboards()
+        console.log('📦 Dados legacy:', data);
         if (data && Array.isArray(data) && data.length > 0) {
           setDashboards(data)
           setActiveId((prev) => (data.some((d) => d.id === prev) ? prev : (data[0]?.id || null)))
-          console.log('Dashboards carregados do Supabase (estrutura legacy)')
+          console.log('✅ Dashboards carregados do Supabase (estrutura legacy)')
 
           const updateInfo = await getLastUpdateInfo()
           setLastUpdateInfo(updateInfo)
           lastUpdateAtRef.current = updateInfo?.updated_at || null
         } else {
           // Se não há dashboards no servidor, tentar localStorage
+          console.log('💾 Tentando localStorage...');
           const fromLS = safeJsonParse(localStorage.getItem(LS_KEY));
+          console.log('📁 localStorage dados:', fromLS);
           if (Array.isArray(fromLS) && fromLS.length) {
             setDashboards(fromLS);
             setActiveId(fromLS[0]?.id || null);
-            console.log('Dashboards carregados do localStorage');
+            console.log('✅ Dashboards carregados do localStorage');
           } else {
             // Se não tem nada, criar dashboards padrão
+            console.log('🏗️ Criando dashboards padrão...');
             const presetDashboards = createPresetDashboards();
             setDashboards(presetDashboards);
             setActiveId(presetDashboards[0]?.id || null);
-            console.log('Dashboards padrão criados');
+            console.log('✅ Dashboards padrão criados');
           }
         }
         initializedRef.current = true;
+        clearTimeout(bootTimeout);
         setIsBooting(false);
       } catch (error) {
         console.error('Erro ao carregar do Supabase:', error)
@@ -234,6 +255,7 @@ export default function DashboardBuilderApp() {
           setDashboards(presetDashboards);
           setActiveId(presetDashboards[0]?.id || null);
         }
+        clearTimeout(bootTimeout);
         setIsBooting(false);
       }
     }
@@ -251,6 +273,7 @@ export default function DashboardBuilderApp() {
             setCurrentDashMeta({ id: remote.id, name: remote.name, is_public: remote.is_public, public_slug: remote.public_slug });
             lastUpdateAtRef.current = remote.updated_at || null;
             initializedRef.current = true;
+            clearTimeout(bootTimeout);
             setIsBooting(false);
           } else {
             await loadFromSupabase();
@@ -284,6 +307,7 @@ export default function DashboardBuilderApp() {
     } catch { }
 
     return () => {
+      clearTimeout(bootTimeout);
       subscription?.unsubscribe?.()
     }
   }, []);
@@ -650,33 +674,71 @@ export default function DashboardBuilderApp() {
         </div>
       ) : (
         <>
-          <div className="sticky top-0 z-10 border-b bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur border-neutral-200 dark:border-neutral-800">
-            <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-semibold">Crypto & Macro Dashboard</h1>
-              <span className="opacity-60 text-sm">— construa o seu workspace de gráficos</span>
-              {saveStatus && (
-                <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
-                  {saveStatus}
-                </span>
-              )}
-              <div className="flex items-center gap-2 text-xs">
-                <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                <span className="opacity-60">
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <a href="/dashboards" className="btn">Dashboards</a>
-                {currentDashMeta?.id && (
-                  <button className="btn" onClick={() => setShareOpen(true)}>Compartilhar</button>
-                )}
-                <UserMenu />
-                <button className="btn" onClick={() => setDark((v) => !v)} title="Alternar tema">
-                  {dark ? "◐" : "◑"}
-                </button>
-                <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)} title={editMode ? "Modo edição ON" : "Editar"}>
-                  ◐
-                </button>
+          <div className="sticky top-0 z-40 border-b bg-gradient-to-r from-white/95 via-slate-50/95 to-white/95 dark:from-slate-900/95 dark:via-slate-800/95 dark:to-slate-900/95 backdrop-blur-xl border-slate-200/60 dark:border-slate-700/60 shadow-sm h-24 flex items-center">
+            <div className="mx-auto max-w-7xl px-6 w-full">
+              
+              {/* Main Header Row */}
+              <div className="flex items-center justify-between mb-2">
+                {/* Left: Brand & Logo */}
+                <div className="flex items-center gap-3">
+                  {/* Animated Logo */}
+                  <div className="relative">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-cyan-500 shadow-lg flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/25 via-transparent to-transparent rounded-xl"></div>
+                      <div className="text-white text-base font-bold">₿</div>
+                      <div className="absolute inset-0 rounded-xl border border-white/30"></div>
+                    </div>
+                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full border-2 border-white/90 dark:border-slate-900/90 animate-pulse"></div>
+                  </div>
+                  
+                  {/* Brand Text */}
+                  <div className="flex flex-col">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-indigo-900 to-purple-900 dark:from-white dark:via-indigo-100 dark:to-purple-100 bg-clip-text text-transparent">
+                      Crypto & Macro
+                    </h1>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Workspace de gráficos e análises
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {saveStatus && (
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 dark:bg-green-950/30 rounded-md">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                            <span className="text-xs text-green-700 dark:text-green-300 font-medium">
+                              {saveStatus}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {isOnline ? 'Online' : 'Offline'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              
+                {/* Right: Actions */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <a href="/dashboards" className="btn">Dashboards</a>
+                    {currentDashMeta?.id && (
+                      <button className="btn" onClick={() => setShareOpen(true)}>Compartilhar</button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 border-l border-slate-200/60 dark:border-slate-700/60 pl-4">
+                    <UserMenu />
+                    <button className="btn" onClick={() => setDark((v) => !v)} title="Alternar tema">
+                      {dark ? "◐" : "◑"}
+                    </button>
+                    <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)} title={editMode ? "Modo edição ON" : "Editar"}>
+                      ◐
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

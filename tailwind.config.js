@@ -22,6 +22,15 @@ module.exports = {
           900: '#171717',
         },
       },
+      zIndex: {
+        '1000': '1000',
+        '9999': '9999',
+      },
+      position: {
+        'relative': 'relative',
+        'absolute': 'absolute',
+        'fixed': 'fixed',
+      },
     },
   },
   plugins: [],
