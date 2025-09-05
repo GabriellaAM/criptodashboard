@@ -44,7 +44,22 @@ function debounce(func, wait) {
   };
 }
 
-function WidgetRenderer({ w }) {
+function WidgetRenderer({ widget, w }) {
+  // Suporte para ambas as props para compatibilidade
+  const actualWidget = widget || w;
+  
+  // Verificação de segurança - retornar early se widget não existe
+  if (!actualWidget || typeof actualWidget !== 'object') {
+    return (
+      <div className="flex items-center justify-center h-full p-4 text-gray-500">
+        <div className="text-center">
+          <div className="text-2xl mb-2">⚠️</div>
+          <div className="text-sm">Widget inválido</div>
+        </div>
+      </div>
+    );
+  }
+
   // Estado para controlar o tema
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Inicializar com o tema atual
@@ -109,18 +124,20 @@ function WidgetRenderer({ w }) {
   
   // Memorizar a URL do iframe para evitar recálculos desnecessários
   const memoizedIframeUrl = useMemo(() => {
-    return getTradingViewUrl(w.config?.url || "", isDarkMode);
-  }, [w.config?.url, isDarkMode]);
+    const config = actualWidget?.config || {};
+    return getTradingViewUrl(config.url || "", isDarkMode);
+  }, [actualWidget?.config?.url, isDarkMode]);
   
   // Memorizar o estilo da borda
   const memoizedBorderStyle = useMemo(() => {
-    if (!w.config?.border) return "none";
+    const config = actualWidget?.config || {};
+    if (!config.border) return "none";
     return isDarkMode ? 
       "1px solid rgba(255,255,255,0.1)" : 
       "1px solid rgba(0,0,0,0.08)";
-  }, [w.config?.border, isDarkMode]);
+  }, [actualWidget?.config?.border, isDarkMode]);
 
-  switch (w.type) {
+  switch (actualWidget.type) {
     case "text":
       const getSizeClass = (size) => {
         switch(size) {
@@ -157,12 +174,12 @@ function WidgetRenderer({ w }) {
           <div className="absolute top-6 left-6 w-1 h-8 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full opacity-60" />
           
           <div className={`
-            ${getSizeClass(w.config?.size)} 
-            ${getAlignmentClass(w.config?.alignment)} 
-            ${getColorClass(w.config?.color)}
+            ${getSizeClass(actualWidget?.config?.size)} 
+            ${getAlignmentClass(actualWidget?.config?.alignment)} 
+            ${getColorClass(actualWidget?.config?.color)}
             w-full leading-relaxed whitespace-pre-wrap pl-6 prose prose-slate dark:prose-invert max-w-none
           `}>
-            {w.config?.text || (
+            {actualWidget?.config?.text || (
               <div className="text-slate-400 dark:text-slate-500 italic">
                 Clique para adicionar seu texto aqui...
               </div>
@@ -177,15 +194,15 @@ function WidgetRenderer({ w }) {
     case "chart":
       return (
         <div className="w-full h-full overflow-auto">
-          <ChartWidget config={w.config} />
+          <ChartWidget config={actualWidget?.config || {}} />
         </div>
       );
     case "table":
-      return <TableWidget config={w.config} />;
+      return <TableWidget config={actualWidget?.config || {}} />;
     case "kpi":
       return (
         <div className="w-full h-full overflow-auto">
-          <KPIWidget config={w.config} />
+          <KPIWidget config={actualWidget?.config || {}} />
         </div>
       );
     default:
@@ -195,17 +212,18 @@ function WidgetRenderer({ w }) {
 
 // Componente simples para iframe
 function AutoResizeIframe({ w, memoizedIframeUrl, memoizedBorderStyle }) {
+  const actualWidget = w;
   return (
     <div className="w-full h-full">
       <iframe
-        key={w.id}
+        key={actualWidget?.id}
         src={memoizedIframeUrl}
         style={{ 
           border: memoizedBorderStyle,
           width: '100%',
           height: '100%'
         }}
-        allowFullScreen={!!w.config?.allowFull}
+        allowFullScreen={!!(actualWidget?.config?.allowFull)}
         scrolling="auto"
       />
     </div>
@@ -214,11 +232,12 @@ function AutoResizeIframe({ w, memoizedIframeUrl, memoizedBorderStyle }) {
 
 // Componente simples para HTML embed - SEM redimensionamento forçado
 function AutoResizeEmbed({ w }) {
+  const actualWidget = w;
   return (
     <div 
       className="w-full h-full overflow-auto"
       dangerouslySetInnerHTML={{ 
-        __html: w.config?.html || "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>"
+        __html: actualWidget?.config?.html || "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>"
       }}
     />
   );
@@ -227,9 +246,12 @@ function AutoResizeEmbed({ w }) {
 // Memoizar o WidgetRenderer para evitar re-renderizações desnecessárias
 export default memo(WidgetRenderer, (prevProps, nextProps) => {
   // Só re-renderizar se o widget realmente mudou
+  // Verificações de segurança para prevenir erros
+  if (!prevProps?.w || !nextProps?.w) return false;
+  
   return (
-    prevProps.w.id === nextProps.w.id &&
-    prevProps.w.type === nextProps.w.type &&
-    JSON.stringify(prevProps.w.config) === JSON.stringify(nextProps.w.config)
+    (prevProps.widget || prevProps.w)?.id === (nextProps.widget || nextProps.w)?.id &&
+    (prevProps.widget || prevProps.w)?.type === (nextProps.widget || nextProps.w)?.type &&
+    JSON.stringify(prevProps.actualWidget?.config) === JSON.stringify(nextProps.actualWidget?.config)
   );
 });

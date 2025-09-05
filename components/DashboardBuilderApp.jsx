@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Papa from "papaparse";
+import { Responsive, WidthProvider } from "react-grid-layout";
 import WidgetCard from "./WidgetCard";
 import WidgetEditorModal from "./WidgetEditorModal";
 import { safeJsonParse } from "./utils";
@@ -9,10 +10,25 @@ import { saveDashboards, loadDashboards, subscribeToChanges, getLastUpdateInfo, 
 import UserMenu from "./UserMenu";
 import ShareModal from "./ShareModal";
 
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
 const LS_KEY = "econ-crypto-dashboard-v1";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 
 const defaultDash = (name = "Main") => ({ id: uid(), name, widgets: [] });
+
+// Função debounce para evitar chamadas excessivas
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 // safeJsonParse vem de ./utils
 
@@ -170,17 +186,14 @@ export default function DashboardBuilderApp() {
       setIsBooting(false);
     }, 5000); // 5 segundos
 
-    console.log('🚀 Iniciando carregamento do dashboard...');
 
     const loadFromSupabase = async () => {
       try {
-        console.log('📡 Carregando dashboards do Supabase...');
         // Tentar carregar usando a nova estrutura (múltiplos dashboards)
         const [owned, shared] = await Promise.all([
           listOwnedDashboards(),
           listMemberDashboards()
         ]);
-        console.log('📊 Dashboards carregados:', { owned: owned?.length || 0, shared: shared?.length || 0 });
         
         // Se tiver dashboards na nova estrutura, criar dashboards locais baseados no primeiro owned
         if (owned && owned.length > 0) {
@@ -197,7 +210,6 @@ export default function DashboardBuilderApp() {
               public_slug: dashboardData.public_slug 
             });
             lastUpdateAtRef.current = dashboardData.updated_at || null;
-            console.log('Dashboard carregado da nova estrutura do Supabase');
             initializedRef.current = true;
             clearTimeout(bootTimeout);
             setIsBooting(false);
@@ -206,33 +218,25 @@ export default function DashboardBuilderApp() {
         }
 
         // Fallback para estrutura antiga
-        console.log('🔄 Tentando estrutura legacy...');
         const data = await loadDashboards()
-        console.log('📦 Dados legacy:', data);
         if (data && Array.isArray(data) && data.length > 0) {
           setDashboards(data)
           setActiveId((prev) => (data.some((d) => d.id === prev) ? prev : (data[0]?.id || null)))
-          console.log('✅ Dashboards carregados do Supabase (estrutura legacy)')
 
           const updateInfo = await getLastUpdateInfo()
           setLastUpdateInfo(updateInfo)
           lastUpdateAtRef.current = updateInfo?.updated_at || null
         } else {
           // Se não há dashboards no servidor, tentar localStorage
-          console.log('💾 Tentando localStorage...');
           const fromLS = safeJsonParse(localStorage.getItem(LS_KEY));
-          console.log('📁 localStorage dados:', fromLS);
           if (Array.isArray(fromLS) && fromLS.length) {
             setDashboards(fromLS);
             setActiveId(fromLS[0]?.id || null);
-            console.log('✅ Dashboards carregados do localStorage');
           } else {
             // Se não tem nada, criar dashboards padrão
-            console.log('🏗️ Criando dashboards padrão...');
             const presetDashboards = createPresetDashboards();
             setDashboards(presetDashboards);
             setActiveId(presetDashboards[0]?.id || null);
-            console.log('✅ Dashboards padrão criados');
           }
         }
         initializedRef.current = true;
@@ -287,7 +291,6 @@ export default function DashboardBuilderApp() {
         if (!newDashboards.some((d) => d.id === (current ?? activeId))) {
           setActiveId(newDashboards[0]?.id || null);
         }
-        console.log('Dashboard atualizado via realtime (compartilhado)')
         const nowIso = new Date().toISOString();
         lastUpdateAtRef.current = nowIso;
         setLastUpdateInfo({ updated_at: nowIso });
@@ -345,7 +348,6 @@ export default function DashboardBuilderApp() {
         if (currentDashMeta?.id) {
           saveDashboardData(currentDashMeta.id, dashboards).then(({ error }) => {
             if (error) {
-              console.log('Erro ao salvar no Supabase (dashboard), usando localStorage')
               setIsOnline(false)
             } else {
               setIsOnline(true)
@@ -359,10 +361,8 @@ export default function DashboardBuilderApp() {
         } else {
           saveDashboards(dashboards).then(({ error }) => {
             if (error) {
-              console.log('Erro ao salvar no Supabase, usando localStorage')
               setIsOnline(false)
             } else {
-              console.log('Salvo no Supabase com sucesso')
               setIsOnline(true)
               const nowIso = new Date().toISOString();
               lastUpdateAtRef.current = nowIso;
@@ -450,11 +450,9 @@ export default function DashboardBuilderApp() {
       return;
     }
     
-    console.log('📝 setWidgets: atualizando', widgets.length, 'widgets no dashboard', activeDash.id);
     
     setDashboards((prev) => {
       const newDashboards = prev.map((d) => (d.id === activeDash.id ? { ...d, widgets } : d));
-      console.log('📝 setWidgets: dashboards atualizados');
       return newDashboards;
     });
   };
@@ -511,15 +509,12 @@ export default function DashboardBuilderApp() {
   };
 
   const saveWidget = (w) => {
-    console.log('💾 saveWidget chamado:', { id: w.id, title: w.title, type: w.type, _isNew: w._isNew });
     
     if (w._isNew) {
       const nw = { ...w };
       delete nw._isNew;
-      console.log('➕ Adicionando novo widget:', nw.id, 'tipo:', nw.type);
       setWidgets([...(activeDash.widgets || []), nw]);
     } else {
-      console.log('✏️ Editando widget existente:', w.id);
       setWidgets((activeDash.widgets || []).map((x) => (x.id === w.id ? w : x)));
     }
     setShowAddModal(false);
@@ -553,15 +548,11 @@ export default function DashboardBuilderApp() {
       return;
     }
     
-    console.log('🗑️ Deletando widget ID:', id);
-    console.log('🗑️ Widgets antes:', activeDash.widgets?.map(w => ({ id: w.id, title: w.title, type: w.type })));
     
     const widgetsBefore = activeDash.widgets || [];
     const widgetToDelete = widgetsBefore.find(w => w.id === id);
     const widgetsAfter = widgetsBefore.filter((x) => x.id !== id);
     
-    console.log('🗑️ Widget sendo deletado:', widgetToDelete);
-    console.log('🗑️ Widgets restantes:', widgetsAfter.map(w => ({ id: w.id, title: w.title, type: w.type })));
     
     setWidgets(widgetsAfter);
     
@@ -596,12 +587,10 @@ export default function DashboardBuilderApp() {
     [widgets[currentIndex], widgets[newIndex]] = [widgets[newIndex], widgets[currentIndex]];
     
     setWidgets(widgets);
-    console.log(`➡️ Widget ${id} movido ${direction} (posição ${currentIndex} → ${newIndex})`);
   };
 
   // Função de resize MELHORADA - aplicar mudanças imediatamente
   const resizeWidget = (id, updates) => {
-    console.log('🎯 DashboardApp recebeu resize:', id, updates);
     
     setDashboards((prevDashboards) => {
       return prevDashboards.map((dashboard) => {
@@ -611,7 +600,6 @@ export default function DashboardBuilderApp() {
             widgets: dashboard.widgets.map((widget) => {
               if (widget.id === id) {
                 const updatedWidget = { ...widget, ...updates };
-                console.log('✅ Widget atualizado:', updatedWidget);
                 return updatedWidget;
               }
               return widget;
@@ -622,6 +610,123 @@ export default function DashboardBuilderApp() {
       });
     });
   };
+
+  // Gerar layouts para o react-grid-layout - versão melhorada
+  const generateLayouts = useCallback(() => {
+    if (!activeDash?.widgets) return {};
+    
+    const layout = activeDash.widgets.map((widget, index) => {
+      // Use layout salvo se existir, senão use posições padrão inteligentes
+      const savedLayout = widget.layout;
+      
+      // Posicionamento inteligente por tipo de widget
+      const getDefaultPosition = (type, idx) => {
+        switch(type) {
+          case 'text':
+            return {
+              x: (idx * 6) % 12,
+              y: Math.floor(idx / 2) * 3,
+              w: 6,
+              h: 3
+            };
+          case 'iframe':
+            return {
+              x: (idx * 6) % 12,
+              y: Math.floor(idx / 2) * 6,
+              w: 6,
+              h: 6
+            };
+          case 'chart':
+            return {
+              x: (idx * 4) % 12,
+              y: Math.floor(idx / 3) * 4,
+              w: 4,
+              h: 4
+            };
+          default:
+            return {
+              x: (idx * 4) % 12,
+              y: Math.floor(idx / 3) * 4,
+              w: 4,
+              h: 4
+            };
+        }
+      };
+      
+      const defaultPos = getDefaultPosition(widget.type, index);
+      
+      return {
+        i: widget.id,
+        x: savedLayout?.x ?? defaultPos.x,
+        y: savedLayout?.y ?? defaultPos.y,
+        w: savedLayout?.w ?? defaultPos.w,
+        h: savedLayout?.h ?? defaultPos.h,
+        minW: widget.type === 'text' ? 2 : 2,
+        minH: widget.type === 'text' ? 2 : 2,
+        maxW: 12,
+        maxH: widget.type === 'iframe' ? 12 : 8,
+        static: false, // Permite mover todos os widgets
+        isDraggable: true,
+        isResizable: true
+      };
+    });
+    
+    return {
+      lg: layout,
+      md: layout,
+      sm: layout,
+      xs: layout,
+      xxs: layout
+    };
+  }, [activeDash?.widgets]);
+
+  // Debounced layout change handler para evitar conflitos
+  const debouncedLayoutChange = useCallback(
+    debounce((layout, layouts) => {
+      if (!activeDash?.id || !layout) return;
+      
+      console.log('🔄 Salvando layout:', layout.map(item => ({ id: item.i, x: item.x, y: item.y, w: item.w, h: item.h })));
+      
+      setDashboards((prev) => {
+        return prev.map((dashboard) => {
+          if (dashboard.id === activeDash.id) {
+            return {
+              ...dashboard,
+              widgets: dashboard.widgets.map((widget) => {
+                const layoutItem = layout.find(item => item.i === widget.id);
+                if (layoutItem) {
+                  return {
+                    ...widget,
+                    layout: {
+                      x: layoutItem.x,
+                      y: layoutItem.y,
+                      w: layoutItem.w,
+                      h: layoutItem.h
+                    }
+                  };
+                }
+                return widget;
+              })
+            };
+          }
+          return dashboard;
+        });
+      });
+    }, 300),
+    [activeDash?.id]
+  );
+
+  // Handler para drag stop (mais importante que layout change contínuo)
+  const handleDragStop = useCallback((layout, oldItem, newItem, placeholder, e, element) => {
+    console.log('🎯 Drag stopped:', { oldItem, newItem });
+    debouncedLayoutChange(layout);
+  }, [debouncedLayoutChange]);
+
+  // Handler para resize stop
+  const handleResizeStop = useCallback((layout, oldItem, newItem, placeholder, e, element) => {
+    console.log('📏 Resize stopped:', { oldItem, newItem });
+    debouncedLayoutChange(layout);
+  }, [debouncedLayoutChange]);
 
   const exportJSON = () => {
     try {
@@ -767,63 +872,84 @@ export default function DashboardBuilderApp() {
               </div>
             )}
 
-            {/* CONTAINER EM GRID CUSTOMIZÁVEL */}
-            <div 
-              ref={containerRef}
-              className="widgets-container pb-8"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(12, 1fr)', // 12 colunas base como antes
-                gap: '16px',
-                width: '100%',
-                alignItems: 'start'
-              }}
-            >
-              {(activeDash?.widgets || []).map((w) => {
-                // Renderizar títulos de seção de forma especial (sem card)
-                if (w.type === "section-title") {
+            {/* DRAG & DROP GRID LAYOUT - Implementação Corrigida */}
+            {(activeDash?.widgets || []).length > 0 ? (
+              <ResponsiveGridLayout
+                className="layout pb-8"
+                layouts={generateLayouts()}
+                breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                rowHeight={60}
+                isDraggable={editMode}
+                isResizable={editMode}
+                compactType="vertical"
+                margin={[16, 16]}
+                containerPadding={[0, 0]}
+                onDragStart={(layout, oldItem, newItem, placeholder, e, element) => {
+                  console.log('🏁 Drag started:', oldItem.i);
+                }}
+                onDrag={(layout, oldItem, newItem, placeholder, e, element) => {
+                  // Durante o drag, compactar mínimo
+                  console.log('🚚 Dragging:', newItem.i);
+                }}
+                onDragStop={handleDragStop}
+                onResizeStop={handleResizeStop}
+                useCSSTransforms={true}
+                preventCollision={true}
+                autoSize={true}
+                dragHandleClass=".widget-card__drag-handle"
+                isBounded={false}
+                allowOverlap={false}
+                verticalCompact={true}
+                transformScale={1}
+                maxRows={Infinity}
+              >
+                {(activeDash?.widgets || []).map((widget) => {
+                  
+                  // Titles normais renderizados dentro do grid também
+                  if (widget.type === "section-title") {
+                    return (
+                      <div key={widget.id}>
+                        <SectionTitle
+                          widget={widget}
+                          editMode={editMode}
+                          onEdit={() => editSectionTitle(widget.id)}
+                          onDelete={() => deleteWidget(widget.id)}
+                          onMoveUp={() => moveWidget(widget.id, "up")}
+                          onMoveDown={() => moveWidget(widget.id, "down")}
+                        />
+                      </div>
+                    );
+                  }
+                  
+                  // Widgets normais - CHAVE: Passamos props como objetos serializáveis
                   return (
-                    <SectionTitle
-                      key={w.id}
-                      widget={w}
-                      editMode={editMode}
-                      onEdit={() => editSectionTitle(w.id)}
-                      onDelete={() => deleteWidget(w.id)}
-                      onMoveUp={() => moveWidget(w.id, "up")}
-                      onMoveDown={() => moveWidget(w.id, "down")}
-                    />
+                    <div key={widget.id}>
+                      <WidgetCard
+                        widget={widget}
+                        editMode={editMode}
+                        onEdit={() => editWidget(widget.id)}
+                        onDup={() => duplicateWidget(widget.id)}
+                        onDel={() => deleteWidget(widget.id)}
+                        onMoveUp={() => moveWidget(widget.id, "up")}
+                        onMoveDown={() => moveWidget(widget.id, "down")}
+                        onResize={resizeWidget}
+                        isDraggable={editMode}
+                      />
+                    </div>
                   );
-                }
-                
-                // Renderizar widgets normais com card
-                return (
-                  <WidgetCard
-                    key={w.id}
-                    w={w}
-                    editMode={editMode}
-                    onEdit={() => editWidget(w.id)}
-                    onDup={() => duplicateWidget(w.id)}
-                    onDel={() => deleteWidget(w.id)}
-                    onMoveUp={() => moveWidget(w.id, "up")}
-                    onMoveDown={() => moveWidget(w.id, "down")}
-                    onResize={resizeWidget}
-                  />
-                );
-              })}
-              
-              {/* Mensagem quando não há widgets */}
-              {(activeDash?.widgets || []).length === 0 && (
-                <div 
-                  className="col-span-full flex items-center justify-center min-h-[60vh] opacity-50"
-                >
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">◇</div>
-                    <div className="text-lg mb-2">Nenhum widget ainda</div>
-                    {editMode && <div className="text-sm opacity-75">Use "Adicionar widget" para começar</div>}
-                  </div>
+                })}
+              </ResponsiveGridLayout>
+            ) : (
+              /* Mensagem quando não há widgets */
+              <div className="flex items-center justify-center min-h-[60vh] opacity-50 pb-8">
+                <div className="text-center">
+                  <div className="text-4xl mb-4">◇</div>
+                  <div className="text-lg mb-2">Nenhum widget ainda</div>
+                  {editMode && <div className="text-sm opacity-75">Use "Adicionar widget" para começar</div>}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -831,10 +957,14 @@ export default function DashboardBuilderApp() {
       {showAddModal && (
         <WidgetEditorModal
           initial={editingWidget}
-          onClose={() => { setShowAddModal(false); setEditingWidget(null); }}
+          onClose={() => { 
+            setShowAddModal(false); 
+            setEditingWidget(null); 
+          }}
           onSave={saveWidget}
         />
       )}
+      
 
       {renameState.open && (
         <div className="modal modal-sm" onClick={() => setRenameState({ open: false, id: null, name: "" })}>

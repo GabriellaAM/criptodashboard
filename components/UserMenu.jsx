@@ -36,20 +36,14 @@ export default function UserMenu() {
   useEffect(() => {
     if (!open) return;
 
-    console.log('🔍 UserMenu: Adicionando event listeners para dropdown aberto');
 
     const handleClickOutside = (e) => {
-      console.log('🔍 UserMenu: Clique detectado:', e.target);
-      console.log('🔍 UserMenu: menuRef.current:', menuRef.current);
-      console.log('🔍 UserMenu: buttonRef.current:', buttonRef.current);
       
       // Verificar se o clique foi fora do menu E fora do botão
       if (menuRef.current && !menuRef.current.contains(e.target) && 
           buttonRef.current && !buttonRef.current.contains(e.target)) {
-        console.log('🔍 UserMenu: Fechando dropdown - clique fora detectado');
         setOpen(false);
       } else {
-        console.log('🔍 UserMenu: Clique dentro do menu/botão - mantendo aberto');
       }
     };
 
@@ -57,13 +51,11 @@ export default function UserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        console.log('🔍 UserMenu: Fechando dropdown - tecla ESC pressionada');
         setOpen(false);
       }
     });
 
     return () => {
-      console.log('🔍 UserMenu: Removendo event listeners');
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", (e) => {
         if (e.key === "Escape") setOpen(false);
@@ -76,7 +68,6 @@ export default function UserMenu() {
   const initials = (displayName || "U").split(" ").map(s => s[0]).join("").slice(0, 2).toUpperCase();
 
   const signOut = async () => {
-    console.log('🔍 UserMenu: Função signOut chamada');
     await supabase.auth.signOut();
     setOpen(false);
     router.replace("/");
@@ -96,10 +87,8 @@ export default function UserMenu() {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log('🔍 UserMenu: Botão clicado, estado atual:', open);
           setOpen(v => {
             const newState = !v;
-            console.log('🔍 UserMenu: Novo estado:', newState);
             return newState;
           });
         }}
@@ -124,13 +113,11 @@ export default function UserMenu() {
             zIndex: 1000
           }}
           onClick={(e) => {
-            console.log('🔍 UserMenu: Clique no dropdown detectado');
             e.stopPropagation();
           }}
         >
           <div className="px-3 py-2 text-sm opacity-70 truncate border-b border-neutral-200/50">{user.email}</div>
           <Link href="/account" className="block px-3 py-2 hover:bg-neutral-100 transition-colors" onClick={() => {
-            console.log('🔍 UserMenu: Link "Minha conta" clicado');
             setOpen(false);
           }}>
             Minha conta

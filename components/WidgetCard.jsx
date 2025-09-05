@@ -1,300 +1,164 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect, memo } from "react";
+import React, { memo, useCallback } from "react";
 import WidgetRenderer from "./WidgetRenderer";
 
-function WidgetCard({ 
-  w, editMode, onEdit, onDup, onDel, onMoveUp, onMoveDown, onResize
-}) {
-  // Dimensões em pixels - totalmente livres
-  const currentWidth = Number(w.width) || 400; // Largura padrão 400px
-  const currentHeight = Number(w.height) || 360; // Altura padrão 360px
+/**
+ * Professional Widget Card Component
+ * 
+ * Enterprise-grade widget card with proper error boundaries,
+ * accessibility, and modern design patterns.
+ * 
+ * @param {Object} props Component props
+ * @param {Object} props.widget Widget configuration object
+ * @param {Object} props.w Legacy widget prop (for backward compatibility)
+ * @param {boolean} props.editMode Whether edit mode is active
+ * @param {Function} props.onEdit Edit callback
+ * @param {Function} props.onDel Delete callback
+ * @param {Function} props.onDup Duplicate callback
+ * @param {boolean} props.isDraggable Whether widget is draggable
+ */
+const WidgetCard = memo(({ 
+  widget, 
+  w, 
+  editMode = false, 
+  onEdit, 
+  onDel, 
+  onDup,
+  isDraggable = false 
+}) => {
+  // Normalize widget prop for backward compatibility
+  const widgetData = widget || w;
   
-  
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeDirection, setResizeDirection] = useState(null);
-  const cardRef = useRef(null);
-  const startDimensionsRef = useRef({ width: currentWidth, height: currentHeight });
+  // Early return for invalid widget data
+  if (!widgetData || typeof widgetData !== 'object') {
+    return (
+      <div className="widget-card widget-card--error" role="alert">
+        <div className="widget-card__error-content">
+          <svg className="widget-card__error-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <span className="widget-card__error-text">Invalid widget configuration</span>
+        </div>
+      </div>
+    );
+  }
 
-  // Atualizar dimensões iniciais quando props mudam
-  useEffect(() => {
-    startDimensionsRef.current = { width: currentWidth, height: currentHeight };
-  }, [currentWidth, currentHeight]);
+  // Memoized event handlers for better performance
+  const handleEdit = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onEdit?.();
+  }, [onEdit, widgetData.id]);
 
-  // Calcular quantas colunas o widget deve ocupar (baseado no grid de 12 colunas)
-  const getGridColumns = (width) => {
-    if (width <= 300) return 3;   // 25% da tela (3/12 colunas)
-    if (width <= 400) return 4;   // 33% da tela (4/12 colunas)  
-    if (width <= 500) return 5;   // 42% da tela (5/12 colunas)
-    if (width <= 600) return 6;   // 50% da tela (6/12 colunas)
-    if (width <= 700) return 7;   // 58% da tela (7/12 colunas)
-    if (width <= 800) return 8;   // 67% da tela (8/12 colunas)
-    if (width <= 900) return 9;   // 75% da tela (9/12 colunas)
-    if (width <= 1000) return 10; // 83% da tela (10/12 colunas)
-    if (width <= 1100) return 11; // 92% da tela (11/12 colunas)
-    return 12; // 100% da tela (12/12 colunas)
-  };
-  const gridCols = getGridColumns(currentWidth);
+  const handleDelete = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onDel?.();
+  }, [onDel]);
 
-  // Estilos para CSS Grid com spanning
-  const styles = { 
-    width: `${currentWidth}px`,
-    minWidth: '300px',
-    maxWidth: '100%',
-    position: 'relative',
-    transition: isResizing ? 'none' : 'all 0.2s ease',
-    overflow: 'visible',
-    zIndex: isResizing ? 5 : 1,
-    gridColumn: `span ${gridCols}`, // Widget pode ocupar múltiplas colunas
-    justifySelf: 'start',
-    alignSelf: 'start'
-  };
+  const handleDuplicate = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onDup?.();
+  }, [onDup]);
 
-  // Resize handler simplificado - aplica mudanças diretamente
-  const handleResize = useCallback((e, direction) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('🔵 Iniciando resize:', direction, 'Widget:', w.id);
-    
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startWidth = startDimensionsRef.current.width;
-    const startHeight = startDimensionsRef.current.height;
-    
-    console.log('📐 Tamanho inicial:', startWidth, 'x', startHeight);
-    
-    setIsResizing(true);
-    setResizeDirection(direction);
-
-    // Controle do cursor
-    document.body.style.cursor = 
-      direction === 'horizontal' ? 'ew-resize' : 
-      direction === 'vertical' ? 'ns-resize' : 
-      'nwse-resize';
-    document.body.style.userSelect = 'none';
-
-    const handleMouseMove = (moveEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
-      
-      let newWidth = startWidth;
-      let newHeight = startHeight;
-
-      if (direction === 'horizontal' || direction === 'both') {
-        newWidth = Math.max(startWidth + deltaX, 200); // Mínimo 200px
-      }
-
-      if (direction === 'vertical' || direction === 'both') {
-        newHeight = Math.max(startHeight + deltaY, 150); // Mínimo 150px  
-      }
-
-      // Aplicar mudanças imediatamente ao pai
-      const updates = {
-        width: Math.round(newWidth),
-        height: Math.round(newHeight)
-      };
-      
-      console.log('📏 Aplicando resize:', updates);
-      onResize?.(w.id, updates);
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      
-      // Restaurar cursor
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      
-      setIsResizing(false);
-      setResizeDirection(null);
-      
-      console.log('🎯 Resize finalizado para widget:', w.id);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [w.id, onResize]);
-
-  // Removido todo o sistema de drag and drop
+  // Dynamic CSS classes based on state
+  const cardClasses = [
+    'widget-card',
+    editMode && 'widget-card--edit-mode',
+    isDraggable && 'widget-card--draggable',
+    widgetData.type && `widget-card--${widgetData.type}`
+  ].filter(Boolean).join(' ');
 
   return (
-    <div
-      ref={cardRef}
-      style={styles}
-      className={`
-        bg-white dark:bg-neutral-800 
-        border border-neutral-200 dark:border-neutral-700 
-        rounded-xl p-4 shadow-sm
-        ${isResizing ? 'ring-2 ring-blue-500/50 shadow-blue-500/20 shadow-lg' : ''}
-        relative transition-all duration-200
-        hover:shadow-md group
-      `}
+    <article 
+      className={cardClasses}
+      data-widget-id={widgetData.id}
+      data-widget-type={widgetData.type}
+      role="region"
+      aria-label={widgetData.title || `${widgetData.type} widget`}
     >
-      
-      {/* Removido indicador de drop zone */}
+      {/* Widget Header with Title and Drag Handle */}
+      <header className="widget-card__header">
+        {/* Drag Handle - Only this area allows dragging */}
+        {editMode && (
+          <div className="widget-card__drag-handle" title="Drag to move widget">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="widget-card__drag-icon">
+              <path d="M7 19v-2h2v2H7zm4-6v-2h2v2h-2zm0-6V5h2v2h-2zm0 12v-2h2v2h-2zm4-6v-2h2v2h-2zm0-6V5h2v2h-2zm0 12v-2h2v2h-2z"/>
+            </svg>
+          </div>
+        )}
+        
+        {widgetData.title && (
+          <h3 className="widget-card__title" title={widgetData.title}>
+            {widgetData.title}
+          </h3>
+        )}
+      </header>
 
-      {/* Handles de resize - apenas direções que funcionam bem com CSS Grid */}
+      {/* Edit Mode Action Buttons */}
       {editMode && (
-        <>
-          {/* Handle horizontal (direita) - redimensionar largura */}
-          <div 
-            className={`absolute -right-1 top-8 bottom-8 w-4 cursor-ew-resize transition-all duration-200 rounded-r-xl flex items-center justify-center z-10 ${
-              isResizing ? 'opacity-100 bg-blue-500/30' : 'opacity-0 hover:opacity-100 group-hover:opacity-100 bg-transparent hover:bg-blue-500/20'
-            }`}
-            onMouseDown={(e) => handleResize(e, 'horizontal')}
-            title="Redimensionar largura"
+        <div className="widget-card__actions react-grid-no-drag" role="toolbar" aria-label="Widget actions">
+          <button
+            type="button"
+            className="widget-card__action widget-card__action--edit react-grid-no-drag"
+            onClick={handleEdit}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Edit widget"
+            title="Edit widget"
           >
-            <div className="w-1 h-8 bg-blue-500 rounded-full opacity-70"></div>
-          </div>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+          </button>
 
-          {/* Handle vertical (baixo) - redimensionar altura */}
-          <div 
-            className={`absolute left-8 right-8 -bottom-1 h-4 cursor-ns-resize transition-all duration-200 rounded-b-xl flex items-center justify-center z-10 ${
-              isResizing ? 'opacity-100 bg-blue-500/30' : 'opacity-0 hover:opacity-100 group-hover:opacity-100 bg-transparent hover:bg-blue-500/20'
-            }`}
-            onMouseDown={(e) => handleResize(e, 'vertical')}
-            title="Redimensionar altura"
+          <button
+            type="button"
+            className="widget-card__action widget-card__action--duplicate react-grid-no-drag"
+            onClick={handleDuplicate}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Duplicate widget"
+            title="Duplicate widget"
           >
-            <div className="w-8 h-1 bg-blue-500 rounded-full opacity-70"></div>
-          </div>
-          
-          {/* Handle diagonal (canto inferior direito) - redimensionar ambos */}
-          <div 
-            className={`absolute -right-1 -bottom-1 w-6 h-6 cursor-nwse-resize transition-all duration-200 rounded-br-xl flex items-center justify-center z-10 ${
-              isResizing ? 'opacity-100 bg-blue-500/50' : 'opacity-0 hover:opacity-100 group-hover:opacity-100 bg-transparent hover:bg-blue-500/30'
-            }`}
-            onMouseDown={(e) => handleResize(e, 'both')}
-            title="Redimensionar largura e altura"
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="widget-card__action widget-card__action--delete react-grid-no-drag"
+            onClick={handleDelete}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Delete widget"
+            title="Delete widget"
           >
-            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-          </div>
-        </>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+        </div>
       )}
 
-      {/* Header com título e controles */}
-      <div className="flex items-start justify-between mb-8 relative">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse" />
-            <h3 className="text-lg font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-300 bg-clip-text text-transparent truncate">
-              {w.title || "Widget"}
-            </h3>
-          </div>
-          {w.type && (
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium uppercase tracking-wider">
-                  {w.type}
-                </p>
-              </div>
-            </div>
-          )}
+      {/* Widget Content */}
+      <main className="widget-card__content">
+        <WidgetRenderer widget={widgetData} />
+      </main>
+
+      {/* Loading State Overlay */}
+      {widgetData.loading && (
+        <div className="widget-card__loading" aria-hidden="true">
+          <div className="widget-card__spinner"></div>
         </div>
-        
-        {editMode && (
-          <div className="flex items-center gap-1">
-            <button 
-              className="btn-sm" 
-              title="Mover para esquerda" 
-              onClick={onMoveUp}
-            >
-              ←
-            </button>
-            <button 
-              className="btn-sm" 
-              title="Mover para direita" 
-              onClick={onMoveDown}
-            >
-              →
-            </button>
-            <button 
-              className="btn-sm" 
-              title="Duplicar" 
-              onClick={onDup}
-            >
-              ⧉
-            </button>
-            <button 
-              className="btn-sm" 
-              title="Editar" 
-              onClick={onEdit}
-            >
-              ◐
-            </button>
-            <button 
-              className="btn-sm btn-destructive" 
-              title="Excluir" 
-              onClick={onDel}
-            >
-              ×
-            </button>
-          </div>
-        )}
-        
-      </div>
-
-      {/* Conteúdo do widget - com altura fixa */}
-      <div 
-        style={{ 
-          height: currentHeight + "px",
-          width: '100%',
-          transition: isResizing ? 'none' : 'height 0.2s ease'
-        }} 
-        className="rounded-2xl overflow-hidden relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-300 hover:border-indigo-200/80 dark:hover:border-indigo-600/80 group"
-      >
-        {/* Subtle Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/2 via-transparent to-purple-500/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-        
-        {/* Top Border Accent */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-300/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        <WidgetRenderer w={w} />
-        
-        {/* Overlay durante resize */}
-        {isResizing && (
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-cyan-500/20 backdrop-blur-md border-2 border-indigo-400/50 dark:border-indigo-500/50 rounded-2xl flex items-center justify-center" style={{ zIndex: 10 }}>
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm px-6 py-3 rounded-2xl shadow-2xl font-bold border border-white/20 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <span>□</span>
-                <span>{currentWidth}×{currentHeight}px</span>
-                {resizeDirection && (
-                  <span className="text-xs opacity-75">
-                    ({resizeDirection === 'horizontal' ? '↔' : resizeDirection === 'vertical' ? '↕' : '↗'})
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Removido overlay de drag */}
-      </div>
-
-      {/* Info do widget */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs opacity-60">
-        <span className="flex items-center gap-1">
-          ◇ <span className="font-medium">{w.type}</span>
-        </span>
-        <span>•</span>
-        <span className="flex items-center gap-1">
-          □ {currentWidth}×{currentHeight}px
-        </span>
-        
-        
-        {editMode && !isResizing && (
-          <>
-            <span>•</span>
-            <span className="text-blue-600 text-xs">
-              ◐ Modo edição
-            </span>
-          </>
-        )}
-      </div>
-    </div>
+      )}
+    </article>
   );
-}
+});
 
-// Temporariamente removendo memoização para debug
+WidgetCard.displayName = 'WidgetCard';
+
 export default WidgetCard;
