@@ -188,9 +188,9 @@ function WidgetRenderer({ widget, w }) {
         </div>
       );
     case "iframe":
-      return <AutoResizeIframe w={w} memoizedIframeUrl={memoizedIframeUrl} memoizedBorderStyle={memoizedBorderStyle} />;
+      return <AutoResizeIframe widget={actualWidget} memoizedIframeUrl={memoizedIframeUrl} memoizedBorderStyle={memoizedBorderStyle} />;
     case "embed":
-      return <AutoResizeEmbed w={w} />;
+      return <AutoResizeEmbed widget={actualWidget} />;
     case "chart":
       return (
         <div className="w-full h-full overflow-auto">
@@ -211,19 +211,18 @@ function WidgetRenderer({ widget, w }) {
 }
 
 // Componente simples para iframe
-function AutoResizeIframe({ w, memoizedIframeUrl, memoizedBorderStyle }) {
-  const actualWidget = w;
+function AutoResizeIframe({ widget, memoizedIframeUrl, memoizedBorderStyle }) {
   return (
     <div className="w-full h-full">
       <iframe
-        key={actualWidget?.id}
+        key={widget?.id}
         src={memoizedIframeUrl}
         style={{ 
           border: memoizedBorderStyle,
           width: '100%',
           height: '100%'
         }}
-        allowFullScreen={!!(actualWidget?.config?.allowFull)}
+        allowFullScreen={!!(widget?.config?.allowFull)}
         scrolling="auto"
       />
     </div>
@@ -231,13 +230,12 @@ function AutoResizeIframe({ w, memoizedIframeUrl, memoizedBorderStyle }) {
 }
 
 // Componente simples para HTML embed - SEM redimensionamento forçado
-function AutoResizeEmbed({ w }) {
-  const actualWidget = w;
+function AutoResizeEmbed({ widget }) {
   return (
     <div 
       className="w-full h-full overflow-auto"
       dangerouslySetInnerHTML={{ 
-        __html: actualWidget?.config?.html || "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>"
+        __html: widget?.config?.html || "<div style='padding:16px;opacity:.6'>Cole aqui o snippet de embed do provedor…</div>"
       }}
     />
   );
@@ -247,11 +245,28 @@ function AutoResizeEmbed({ w }) {
 export default memo(WidgetRenderer, (prevProps, nextProps) => {
   // Só re-renderizar se o widget realmente mudou
   // Verificações de segurança para prevenir erros
-  if (!prevProps?.w || !nextProps?.w) return false;
+  const prevWidget = prevProps?.widget || prevProps?.w;
+  const nextWidget = nextProps?.widget || nextProps?.w;
   
-  return (
-    (prevProps.widget || prevProps.w)?.id === (nextProps.widget || nextProps.w)?.id &&
-    (prevProps.widget || prevProps.w)?.type === (nextProps.widget || nextProps.w)?.type &&
-    JSON.stringify(prevProps.actualWidget?.config) === JSON.stringify(nextProps.actualWidget?.config)
-  );
+  if (!prevWidget || !nextWidget) return false;
+  
+  // Comparação mais eficiente - evita JSON.stringify
+  if (prevWidget.id !== nextWidget.id) return false;
+  if (prevWidget.type !== nextWidget.type) return false;
+  
+  // Comparação profunda apenas se necessário
+  const prevConfig = prevWidget.config || {};
+  const nextConfig = nextWidget.config || {};
+  
+  // Verificar propriedades específicas que realmente importam
+  const configKeys = ['url', 'data', 'xField', 'yFields', 'chartType', 'text', 'size', 'alignment', 'color'];
+  
+  for (const key of configKeys) {
+    if (prevConfig[key] !== nextConfig[key]) {
+      return false;
+    }
+  }
+  
+  // Se chegou até aqui, os widgets são iguais
+  return true;
 });

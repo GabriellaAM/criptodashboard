@@ -9,6 +9,7 @@ import { safeJsonParse } from "./utils";
 import { saveDashboards, loadDashboards, subscribeToChanges, getLastUpdateInfo, getDashboard, getDashboardBySlug, saveDashboardData, listOwnedDashboards, listMemberDashboards } from "../lib/dashboard-persistence";
 import UserMenu from "./UserMenu";
 import ShareModal from "./ShareModal";
+import PerformanceMonitor, { usePerformanceMonitor } from "./PerformanceMonitor";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -150,6 +151,11 @@ export default function DashboardBuilderApp() {
   
   // Container ref para cálculos de posição
   const containerRef = useRef(null);
+  
+  // Monitor de performance (habilitado apenas em desenvolvimento)
+  const { logPerformance, measureRenderTime } = usePerformanceMonitor(
+    process.env.NODE_ENV === 'development'
+  );
 
   const dashboardsEqual = (a, b) => {
     try {
@@ -611,9 +617,9 @@ export default function DashboardBuilderApp() {
     });
   };
 
-  // Gerar layouts para o react-grid-layout - versão melhorada
+  // Gerar layouts para o react-grid-layout - versão otimizada
   const generateLayouts = useCallback(() => {
-    if (!activeDash?.widgets) return {};
+    if (!activeDash?.widgets || activeDash.widgets.length === 0) return {};
     
     const layout = activeDash.widgets.map((widget, index) => {
       // Use layout salvo se existir, senão use posições padrão inteligentes
@@ -665,9 +671,9 @@ export default function DashboardBuilderApp() {
         minH: widget.type === 'text' ? 2 : 2,
         maxW: 12,
         maxH: widget.type === 'iframe' ? 12 : 8,
-        static: false, // Permite mover todos os widgets
-        isDraggable: true,
-        isResizable: true
+        static: !editMode, // Só permite mover quando em modo de edição
+        isDraggable: editMode,
+        isResizable: editMode
       };
     });
     
@@ -678,14 +684,12 @@ export default function DashboardBuilderApp() {
       xs: layout,
       xxs: layout
     };
-  }, [activeDash?.widgets]);
+  }, [activeDash?.widgets, editMode]);
 
   // Debounced layout change handler para evitar conflitos
   const debouncedLayoutChange = useCallback(
-    debounce((layout, layouts) => {
+    debounce((layout) => {
       if (!activeDash?.id || !layout) return;
-      
-      console.log('🔄 Salvando layout:', layout.map(item => ({ id: item.i, x: item.x, y: item.y, w: item.w, h: item.h })));
       
       setDashboards((prev) => {
         return prev.map((dashboard) => {
@@ -712,21 +716,66 @@ export default function DashboardBuilderApp() {
           return dashboard;
         });
       });
-    }, 300),
+    }, 500), // Aumentar debounce para 500ms para melhor performance
     [activeDash?.id]
   );
 
-  // Handler para drag stop (mais importante que layout change contínuo)
+  // Handler para drag stop - mais eficiente
   const handleDragStop = useCallback((layout, oldItem, newItem, placeholder, e, element) => {
-    console.log('🎯 Drag stopped:', { oldItem, newItem });
-    debouncedLayoutChange(layout);
-  }, [debouncedLayoutChange]);
+    const endMeasure = measureRenderTime('handleDragStop');
+    
+    // Só salvar se realmente houve mudança
+    if (oldItem && newItem && 
+        (oldItem.x !== newItem.x || oldItem.y !== newItem.y || 
+         oldItem.w !== newItem.w || oldItem.h !== newItem.h)) {
+      
+      logPerformance('dragStop', {
+        widgetId: newItem.i,
+        oldPosition: { x: oldItem.x, y: oldItem.y, w: oldItem.w, h: oldItem.h },
+        newPosition: { x: newItem.x, y: newItem.y, w: newItem.w, h: newItem.h }
+      });
+      
+      debouncedLayoutChange(layout);
+    }
+    
+    endMeasure();
+  }, [debouncedLayoutChange, logPerformance, measureRenderTime]);
 
-  // Handler para resize stop
+  // Handler para resize stop - mais eficiente
   const handleResizeStop = useCallback((layout, oldItem, newItem, placeholder, e, element) => {
-    console.log('📏 Resize stopped:', { oldItem, newItem });
-    debouncedLayoutChange(layout);
-  }, [debouncedLayoutChange]);
+    const endMeasure = measureRenderTime('handleResizeStop');
+    
+    // Só salvar se realmente houve mudança
+    if (oldItem && newItem && 
+        (oldItem.w !== newItem.w || oldItem.h !== newItem.h)) {
+      
+      logPerformance('resizeStop', {
+        widgetId: newItem.i,
+        oldSize: { w: oldItem.w, h: oldItem.h },
+        newSize: { w: newItem.w, h: newItem.h }
+      });
+      
+      debouncedLayoutChange(layout);
+    }
+    
+    endMeasure();
+  }, [debouncedLayoutChange, logPerformance, measureRenderTime]);
+
+  // Handler para drag start - para melhor UX
+  const handleDragStart = useCallback((layout, oldItem, newItem, placeholder, e, element) => {
+    logPerformance('dragStart', { widgetId: oldItem.i });
+    
+    // Adicionar classe para indicar que está arrastando
+    if (element) {
+      element.classList.add('react-draggable-dragging');
+    }
+  }, [logPerformance]);
+
+  // Handler para drag - para melhor performance
+  const handleDrag = useCallback((layout, oldItem, newItem, placeholder, e, element) => {
+    // Não fazer nada durante o drag para melhor performance
+    // O layout será salvo apenas no dragStop
+  }, []);
 
   const exportJSON = () => {
     try {
@@ -757,6 +806,9 @@ export default function DashboardBuilderApp() {
 
   return (
     <div className="min-h-screen w-full bg-neutral-50 text-neutral-900">
+      {/* Monitor de Performance - apenas em desenvolvimento */}
+      <PerformanceMonitor enabled={process.env.NODE_ENV === 'development'} />
+      
       {isBooting ? (
         <div className="flex items-center justify-center h-screen">
           <div className="animate-pulse text-sm opacity-70">Carregando…</div>
@@ -872,7 +924,7 @@ export default function DashboardBuilderApp() {
               </div>
             )}
 
-            {/* DRAG & DROP GRID LAYOUT - Implementação Corrigida */}
+            {/* DRAG & DROP GRID LAYOUT - Implementação Otimizada */}
             {(activeDash?.widgets || []).length > 0 ? (
               <ResponsiveGridLayout
                 className="layout pb-8"
@@ -885,17 +937,12 @@ export default function DashboardBuilderApp() {
                 compactType="vertical"
                 margin={[16, 16]}
                 containerPadding={[0, 0]}
-                onDragStart={(layout, oldItem, newItem, placeholder, e, element) => {
-                  console.log('🏁 Drag started:', oldItem.i);
-                }}
-                onDrag={(layout, oldItem, newItem, placeholder, e, element) => {
-                  // Durante o drag, compactar mínimo
-                  console.log('🚚 Dragging:', newItem.i);
-                }}
+                onDragStart={handleDragStart}
+                onDrag={handleDrag}
                 onDragStop={handleDragStop}
                 onResizeStop={handleResizeStop}
                 useCSSTransforms={true}
-                preventCollision={true}
+                preventCollision={false}
                 autoSize={true}
                 dragHandleClass=".widget-card__drag-handle"
                 isBounded={false}
@@ -903,6 +950,7 @@ export default function DashboardBuilderApp() {
                 verticalCompact={true}
                 transformScale={1}
                 maxRows={Infinity}
+                draggableCancel=".react-grid-no-drag"
               >
                 {(activeDash?.widgets || []).map((widget) => {
                   

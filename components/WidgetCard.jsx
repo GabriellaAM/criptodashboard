@@ -161,4 +161,37 @@ const WidgetCard = memo(({
 
 WidgetCard.displayName = 'WidgetCard';
 
-export default WidgetCard;
+// Comparação otimizada para memo
+const arePropsEqual = (prevProps, nextProps) => {
+  // Comparar props básicas primeiro
+  if (prevProps.editMode !== nextProps.editMode) return false;
+  if (prevProps.isDraggable !== nextProps.isDraggable) return false;
+  
+  // Comparar widget data
+  const prevWidget = prevProps.widget || prevProps.w;
+  const nextWidget = nextProps.widget || nextProps.w;
+  
+  if (!prevWidget || !nextWidget) return false;
+  
+  // Comparação rápida de propriedades essenciais
+  if (prevWidget.id !== nextWidget.id) return false;
+  if (prevWidget.type !== nextWidget.type) return false;
+  if (prevWidget.title !== nextWidget.title) return false;
+  
+  // Comparar config apenas se necessário
+  const prevConfig = prevWidget.config || {};
+  const nextConfig = nextWidget.config || {};
+  
+  // Verificar propriedades específicas que realmente importam
+  const configKeys = ['url', 'data', 'xField', 'yFields', 'chartType', 'text', 'size', 'alignment', 'color'];
+  
+  for (const key of configKeys) {
+    if (prevConfig[key] !== nextConfig[key]) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+export default memo(WidgetCard, arePropsEqual);
