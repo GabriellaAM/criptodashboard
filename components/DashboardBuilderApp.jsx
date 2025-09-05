@@ -115,12 +115,6 @@ export default function DashboardBuilderApp() {
   const [dashboards, setDashboards] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [editMode, setEditMode] = useState(true);
-  const [dark, setDark] = useState(() => {
-    if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark');
-    }
-    return false;
-  });
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
   const [renameState, setRenameState] = useState({ open: false, id: null, name: "" });
@@ -386,16 +380,6 @@ export default function DashboardBuilderApp() {
     setCanAddWidgets(Array.isArray(dashboards) && dashboards.length > 0);
   }, [dashboards]);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem("dash-dark-mode", dark ? "1" : "0");
-      } catch { }
-      const root = document.documentElement;
-      if (dark) root.classList.add("dark");
-      else root.classList.remove("dark");
-    }
-  }, [dark]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -667,14 +651,14 @@ export default function DashboardBuilderApp() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+    <div className="min-h-screen w-full bg-neutral-50 text-neutral-900">
       {isBooting ? (
         <div className="flex items-center justify-center h-screen">
           <div className="animate-pulse text-sm opacity-70">Carregando…</div>
         </div>
       ) : (
         <>
-          <div className="sticky top-0 z-40 border-b bg-gradient-to-r from-white/95 via-slate-50/95 to-white/95 dark:from-slate-900/95 dark:via-slate-800/95 dark:to-slate-900/95 backdrop-blur-xl border-slate-200/60 dark:border-slate-700/60 shadow-sm h-24 flex items-center">
+          <div className="sticky top-0 z-40 border-b bg-gradient-to-r from-white/95 via-slate-50/95 to-white/95 backdrop-blur-xl border-slate-200/60 shadow-sm h-24 flex items-center">
             <div className="mx-auto max-w-7xl px-6 w-full">
               
               {/* Main Header Row */}
@@ -688,30 +672,30 @@ export default function DashboardBuilderApp() {
                       <div className="text-white text-base font-bold">₿</div>
                       <div className="absolute inset-0 rounded-xl border border-white/30"></div>
                     </div>
-                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full border-2 border-white/90 dark:border-slate-900/90 animate-pulse"></div>
+                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full border-2 border-white/90 animate-pulse"></div>
                   </div>
                   
                   {/* Brand Text */}
                   <div className="flex flex-col">
-                    <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-indigo-900 to-purple-900 dark:from-white dark:via-indigo-100 dark:to-purple-100 bg-clip-text text-transparent">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-indigo-900 to-purple-900 bg-clip-text text-transparent">
                       Crypto & Macro
                     </h1>
                     <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                      <span className="text-xs text-slate-500">
                         Workspace de gráficos e análises
                       </span>
                       <div className="flex items-center gap-2">
                         {saveStatus && (
-                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 dark:bg-green-950/30 rounded-md">
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 rounded-md">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                            <span className="text-xs text-green-700 dark:text-green-300 font-medium">
+                            <span className="text-xs text-green-700 font-medium">
                               {saveStatus}
                             </span>
                           </div>
                         )}
                         <div className="flex items-center gap-1.5">
                           <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                          <span className="text-xs text-slate-500">
                             {isOnline ? 'Online' : 'Offline'}
                           </span>
                         </div>
@@ -729,11 +713,8 @@ export default function DashboardBuilderApp() {
                     )}
                   </div>
                   
-                  <div className="flex items-center gap-2 border-l border-slate-200/60 dark:border-slate-700/60 pl-4">
+                  <div className="flex items-center gap-2 border-l border-slate-200/60 pl-4">
                     <UserMenu />
-                    <button className="btn" onClick={() => setDark((v) => !v)} title="Alternar tema">
-                      {dark ? "◐" : "◑"}
-                    </button>
                     <button className={`btn ${editMode ? "btn-primary" : ""}`} onClick={() => setEditMode((v) => !v)} title={editMode ? "Modo edição ON" : "Editar"}>
                       ◐
                     </button>
@@ -880,7 +861,7 @@ export default function DashboardBuilderApp() {
             <div className="modal-header">
               <h2 className="modal-title">Excluir dashboard</h2>
             </div>
-            <div className="text-slate-600 dark:text-slate-400 leading-relaxed">
+            <div className="text-slate-600 leading-relaxed">
               Tem certeza que deseja excluir este dashboard? Esta ação não pode ser desfeita.
             </div>
             <div className="modal-footer">
@@ -965,7 +946,7 @@ function SectionTitle({ widget, editMode, onEdit, onDelete, onMoveUp, onMoveDown
 
   return (
     <div className="col-span-full flex items-center group py-2">
-      <h2 className={`${getSizeClass(widget.size)} text-gray-900 dark:text-gray-100 leading-tight flex-1 ${editMode ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''}`}
+      <h2 className={`${getSizeClass(widget.size)} text-gray-900 leading-tight flex-1 ${editMode ? 'cursor-pointer hover:text-blue-600' : ''}`}
           onClick={editMode ? onEdit : undefined}
           title={editMode ? "Clique para editar" : undefined}>
         {widget.text || 'Título da seção'}
@@ -974,7 +955,7 @@ function SectionTitle({ widget, editMode, onEdit, onDelete, onMoveUp, onMoveDown
         <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
           <button className="btn-sm hover:scale-110 transition-transform" onClick={onMoveUp} title="Mover para esquerda">←</button>
           <button className="btn-sm hover:scale-110 transition-transform" onClick={onMoveDown} title="Mover para direita">→</button>
-          <button className="btn-sm hover:bg-red-100 dark:hover:bg-red-900 text-red-600" onClick={onDelete} title="Excluir título">×</button>
+          <button className="btn-sm hover:bg-red-100 text-red-600" onClick={onDelete} title="Excluir título">×</button>
         </div>
       )}
     </div>

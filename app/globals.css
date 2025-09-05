@@ -53,40 +53,6 @@
                    radial-gradient(at 0% 50%, rgb(6 182 212 / 0.06) 0px, transparent 50%);
 }
 
-/* Dark Theme */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground: 248, 250, 252;          /* Slate 50 */
-    --foreground-muted: 203, 213, 225;    /* Slate 300 */
-    --foreground-subtle: 148, 163, 184;   /* Slate 400 */
-    
-    --background-primary: 2, 6, 23;       /* Slate 950 */
-    --background-secondary: 15, 23, 42;   /* Slate 900 */
-    --background-tertiary: 30, 41, 59;    /* Slate 800 */
-    
-    --surface-primary: 15, 23, 42;        /* Slate 900 */
-    --surface-secondary: 30, 41, 59;      /* Slate 800 */
-    --surface-raised: 30, 41, 59;         /* Slate 800 with shadow */
-    
-    --border-primary: 51, 65, 85;         /* Slate 700 */
-    --border-secondary: 71, 85, 105;      /* Slate 600 */
-    
-    --glass-bg: 15, 23, 42, 0.8;
-    --glass-border: 255, 255, 255, 0.1;
-    
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4);
-    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.6);
-    
-    --gradient-surface: linear-gradient(145deg, rgb(30 41 59 / 0.9), rgb(15 23 42 / 0.8));
-    --gradient-mesh: radial-gradient(at 40% 20%, rgb(99 102 241 / 0.15) 0px, transparent 50%),
-                     radial-gradient(at 80% 20%, rgb(168 85 247 / 0.1) 0px, transparent 50%),
-                     radial-gradient(at 0% 50%, rgb(6 182 212 / 0.08) 0px, transparent 50%);
-  }
-}
 
 * {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -506,18 +472,6 @@ body::after {
   100% { opacity: 1; }
 }
 
-/* Dark mode backdrop */
-html.dark .modal {
-  background: rgba(2, 6, 23, 0.25);
-}
-
-html.dark .modal::before {
-  background: radial-gradient(
-    ellipse 800px 600px at center,
-    rgba(139, 92, 246, 0.06),
-    transparent 70%
-  );
-}
 
 /* === PREMIUM MODAL CARD STYLES === */
 
@@ -609,28 +563,6 @@ html.dark .modal::before {
   100% { opacity: 0.3; }
 }
 
-/* Dark mode card */
-html.dark .modal-card {
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(71, 85, 105, 0.3);
-  box-shadow: 
-    0 32px 64px -8px rgba(0, 0, 0, 0.4),
-    0 16px 32px -4px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(71, 85, 105, 0.1),
-    inset 0 1px 0 rgba(148, 163, 184, 0.1),
-    inset 0 -1px 0 rgba(71, 85, 105, 0.2);
-}
-
-html.dark .modal-card::before {
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.4) 0%,
-    rgba(167, 243, 208, 0.2) 25%,
-    rgba(34, 211, 238, 0.3) 50%,
-    rgba(167, 243, 208, 0.2) 75%,
-    rgba(139, 92, 246, 0.4) 100%
-  );
-}
 
 /* === MODAL HEADER STYLES === */
 
@@ -659,9 +591,6 @@ html.dark .modal-card::before {
   border-radius: 1px;
 }
 
-html.dark .modal-header {
-  border-bottom: 1px solid rgba(71, 85, 105, 0.2);
-}
 
 .modal-title {
   font-size: 1.25rem;
@@ -677,16 +606,6 @@ html.dark .modal-header {
   margin: 0;
 }
 
-html.dark .modal-title {
-  background: linear-gradient(
-    135deg,
-    rgb(248, 250, 252) 0%,
-    rgb(203, 213, 225) 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
 
 /* === MODAL FOOTER STYLES === */
 
@@ -699,9 +618,6 @@ html.dark .modal-title {
   gap: 12px;
 }
 
-html.dark .modal-footer {
-  border-top: 1px solid rgba(71, 85, 105, 0.2);
-}
 
 /* === RESPONSIVE MODAL SIZES === */
 
@@ -834,14 +750,6 @@ iframe {
   background: transparent !important;
 }
 
-/* Tema escuro */
-html.dark .overflow-auto::-webkit-scrollbar-thumb {
-  background: rgba(107, 114, 128, 0.5) !important;
-}
-
-html.dark .overflow-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.8) !important;
-}
 
 /* Firefox */
 .overflow-auto {
@@ -849,9 +757,6 @@ html.dark .overflow-auto::-webkit-scrollbar-thumb:hover {
   scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
 }
 
-html.dark .overflow-auto {
-  scrollbar-color: rgba(107, 114, 128, 0.5) transparent;
-}
 
 /* Estilos para ocultar barras de scroll */
 .scrollbar-hide {
@@ -886,14 +791,3 @@ html.dark .overflow-auto {
   background: rgba(0, 0, 0, 0.5);
 }
 
-html.dark .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}

@@ -104,7 +104,7 @@ export default function UserMenu() {
           });
         }}
       >
-        <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
+        <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-200 flex items-center justify-center">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -119,7 +119,7 @@ export default function UserMenu() {
       {open && (
         <div 
           data-usermenu-dropdown
-          className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-700/60 py-2"
+          className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/60 py-2"
           style={{
             zIndex: 1000
           }}
@@ -128,14 +128,14 @@ export default function UserMenu() {
             e.stopPropagation();
           }}
         >
-          <div className="px-3 py-2 text-sm opacity-70 truncate border-b border-neutral-200/50 dark:border-neutral-700/50">{user.email}</div>
-          <Link href="/account" className="block px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" onClick={() => {
+          <div className="px-3 py-2 text-sm opacity-70 truncate border-b border-neutral-200/50">{user.email}</div>
+          <Link href="/account" className="block px-3 py-2 hover:bg-neutral-100 transition-colors" onClick={() => {
             console.log('🔍 UserMenu: Link "Minha conta" clicado');
             setOpen(false);
           }}>
             Minha conta
           </Link>
-          <button className="block w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" onClick={signOut}>
+          <button className="block w-full text-left px-3 py-2 hover:bg-neutral-100 transition-colors" onClick={signOut}>
             Sair
           </button>
         </div>
